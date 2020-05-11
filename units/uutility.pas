@@ -7,10 +7,26 @@ interface
 uses
   Classes, SysUtils;
 
+function ExpandTabs(const _s: string; tabsize: integer): string;
 function IsPrime(_value: integer): boolean;
 function NextPrime(_value: integer): integer;
 
 implementation
+
+function ExpandTabs(const _s: string; tabsize: integer): string;
+var i: integer;
+begin
+  Result := '';
+  for i := 1 to Length(_s) do
+    begin
+      if _s[i] <> #9 then
+        Result := Result + _s[i]
+      else
+        repeat
+          Result := Result + ' ';
+        until (Length(Result) mod tabsize) = 0;
+    end;
+end;
 
 function IsPrime(_value: integer): boolean;
 var divisor: integer;

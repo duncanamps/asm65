@@ -41,7 +41,8 @@ type
 
 implementation
 
-
+uses
+  uutility, uassembler;
 
 { TFileStackEntry }
 
@@ -89,7 +90,7 @@ var rec: TFileStackEntry;
 begin
   if EOF then
     Monitor(ltInternal,'Attempt to read past end of file on ' + Filename);
-  Result := Top.List[InputLine];
+  Result := ExpandTabs(Top.List[InputLine],TAssembler(FParser).TabSize);
   rec := Top;
   Inc(rec.InputLine);
   Items[Count-1] := rec;

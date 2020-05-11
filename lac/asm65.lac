@@ -30,10 +30,11 @@
 //
 
 {DigitBin}		= [01];
-{DigitHex}		= {Digit} + [ABCDEF];
+{DigitHex}		= {Digit} + [ABCDEFabcdef];
 {DigitNonZero}	= [123456789];
 {DigitOct}		= [01234567];
 {DQuote}		= [\x22];
+{Quotable}		= {Printable} - {DQuote};
 
 {CommentChar}	= {Printable} + {Tab};
 
@@ -150,13 +151,13 @@ F_LEFT				= MIXED("LEFT(")		keyword;
 F_LOW				= MIXED("LOW(")			keyword;
 F_LOWER				= MIXED("LOWER(")		keyword;
 F_MID				= MIXED("MID(")			keyword;
+F_ORG				= MIXED("ORG")			keyword;
 F_POS				= MIXED("POS(")			keyword;
 F_POSCI				= MIXED("POSCI(")		keyword;
 F_RIGHT				= MIXED("RIGHT(")		keyword;
 F_STRING			= MIXED("STRING(")		keyword;
 F_TIME				= MIXED("TIME()")		keyword;
 F_UPPER				= MIXED("UPPER(")		keyword;
-F_VERSION			= MIXED("VERSION(")		keyword;
 F_VALUE				= MIXED("VALUE(")		keyword;
 
 K_BYTE				= MIXED(".BYTE")		keyword;
@@ -186,7 +187,7 @@ K_WARNING			= MIXED(".WARNING")		keyword;
 
 LocalAddress		= "@" {SymbolStart}{SymbolMid}*;
 MacroPlaceholder	= "@"{Digit};
-StringConstant		= {DQuote} {Printable}* {DQuote};                 
+StringConstant		= {DQuote} {Quotable}* {DQuote};                 
 SymbolDef			= {SymbolStart}{SymbolMid}*;   
 Whitespace			= {Whitespace}+ ignore;                 
                  
@@ -241,118 +242,117 @@ LineComment2      = "//" {CommentChar}* ignore;
 					| K_WARNING  <string expr>						# ActDirWarning
 					;
 
-<label> : "@" SymbolDef ":"
-          | SymbolDef ":"
+<label> : "@" SymbolDef ":"											
+          | SymbolDef ":"											# ActLabel
 		  ;
 
-<instruction> : OPCODE <Operand>								# ActInstruction
+<instruction> : OPCODE <Operand>									# ActInstruction
 			;
 
-<Operand>	: "[" <expression> ComX "]"		// [expr,X]
-            | "[" <expression> "]" ComY		// [expr],Y
-            | "[" <expression> "]"			// [expr]  used only with JMP
-            | "#" <expression>				// #expr
-            | <expression> ComX				// expr,X
-            | <expression> ComY				// expr,Y
-            | <expression>					// Could be zero page, 16 bit or branch
-            | Accum							// Accumulator (A)
-            |								// Implied, no operand                           
+<Operand>	: "[" <expression> ComX "]"								# ActSetOpIndX
+            | "[" <expression> "]" ComY								# ActSetOpIndY
+            | "[" <expression> "]"									# ActSetOpInd
+            | "#" <expression>										# ActSetOpImmed
+            | <expression> ComX										# ActSetOpAbsX
+            | <expression> ComY										# ActSetOpAbsY
+            | <expression>											# ActSetOpAbs
+            | Accum													# ActSetOpA
+            |														# ActSetOpImpl 
 			;
 
-<expression list>	: <expression list> "," <expression>
-					| <expression>								# ActCopy1
+<expression list>	: <expression list> "," <expression>			# ActExprList
+					| <expression>									# ActCopy1
 					;
                                
-<expression>		: <expression> LogicalOr <and expr>
-					| <and expr>								# ActCopy1
+<expression>		: <expression> LogicalOr <and expr>				# ActLogOr
+					| <and expr>									# ActCopy1
 					;
                
-<and expr>			: <and expr> LogicalAnd <binor expr>
-					| <binor expr>								# ActCopy1
+<and expr>			: <and expr> LogicalAnd <binor expr>			# ActLogAnd
+					| <binor expr>									# ActCopy1
 					;
              
-<binor expr>		: <binor expr> BinOr <binxor expr>
-					| <binxor expr>								# ActCopy1
+<binor expr>		: <binor expr> BinOr <binxor expr>				# ActExprOr
+					| <binxor expr>									# ActCopy1
 					;
                
-<binxor expr>		: <binxor expr> BinXor <binand expr>
-					| <binand expr>								# ActCopy1
+<binxor expr>		: <binxor expr> BinXor <binand expr>			# ActExprXor
+					| <binand expr>									# ActCopy1
 					;
                 
-<binand expr>		: <binand expr> BinAnd <equate expr>
-					| <equate expr>								# ActCopy1
+<binand expr>		: <binand expr> BinAnd <equate expr>			# ActExprAnd
+					| <equate expr>									# ActCopy1
 					;
                 
-<equate expr>		: <equate expr> Equal <compare expr>
-					| <equate expr> NotEqual <compare expr>
-					| <compare expr>							# ActCopy1
+<equate expr>		: <equate expr> Equal <compare expr>			# ActCompEQ
+					| <equate expr> NotEqual <compare expr>			# ActCompNE
+					| <compare expr>								# ActCopy1
 					;
                 
-<compare expr>		: <compare expr> LessThan <shift expr>
-					| <compare expr> GreaterThan <shift expr>
-					| <compare expr> LessEqual <shift expr>
-					| <compare expr> GreaterEqual <shift expr>
-					| <shift expr>								# ActCopy1
+<compare expr>		: <compare expr> LessThan <shift expr>			# ActCompLT
+					| <compare expr> GreaterThan <shift expr>		# ActCompGT
+					| <compare expr> LessEqual <shift expr>			# ActCompLE
+					| <compare expr> GreaterEqual <shift expr>		# ActCompGE
+					| <shift expr>									# ActCopy1
 					;
                  
-<shift expr>		: <shift expr> LeftShift <add expr>
-					| <shift expr> RightShift <add expr>
-					| <add expr>								# ActCopy1
+<shift expr>		: <shift expr> LeftShift <add expr>				# ActExprShl
+					| <shift expr> RightShift <add expr>			# ActExprShr
+					| <add expr>									# ActCopy1
 					;
                  
-<add expr>			: <add expr> "+" <mult expr>				# ActExprAdd
-					| <add expr> "-" <mult expr>
-					| <mult expr>								# ActCopy1
+<add expr>			: <add expr> "+" <mult expr>					# ActExprAdd
+					| <add expr> "-" <mult expr>					# ActExprSub
+					| <mult expr>									# ActCopy1
 					;
                  
-<mult expr>			: <mult expr> "*" <unary expr>
-					| <mult expr> "/" <unary expr>
-					| <mult expr> Modulo <unary expr>
-					| <unary expr>								# ActCopy1
+<mult expr>			: <mult expr> "*" <unary expr>					# ActExprMul
+					| <mult expr> "/" <unary expr>					# ActExprDiv
+					| <mult expr> Modulo <unary expr>				# ActExprMod
+					| <unary expr>									# ActCopy1
 					;
                  
-<unary expr>		: "-" <value>
-					| LogicalNot <value>
-					| BinNot <value>
-					| <value>									# ActCopy1
+<unary expr>		: "-" <value>									# ActExprMinus
+					| LogicalNot <value>							# ActLogNot
+					| BinNot <value>								# ActExprNot
+					| <value>										# ActCopy1
 					;
                  
-<value>				: K_ORG
-					| HexLiteral								# ActHexLiteral
-					| DecLiteral								# ActDecLiteral
-					| OctLiteral								# ActOctLiteral
-					| BinLiteral								# ActBinLiteral
+<value>				: F_ORG											# ActValueOrg
+					| HexLiteral									# ActHexLiteral
+					| DecLiteral									# ActDecLiteral
+					| OctLiteral									# ActOctLiteral
+					| BinLiteral									# ActBinLiteral
 					| F_ASC <string expr> ")"
-					| F_HIGH <expression> ")"
+					| F_HIGH <expression> ")"						# ActFuncHigh
 					| F_IIF <expression> "," <expression> "," <expression> ")"
-					| F_LOW <expression> ")"
+					| F_LOW <expression> ")"						# ActFuncLow
 					| F_POS <string expr> "," <string expr> ")"
 					| F_POSCI <string expr> "," <string expr> ")"
-					| F_VALUE <string expr> ")"
-					| K_TRUE
-					| K_FALSE
-					| "(" <expression> ")"
-					| SymbolDef									# ActValueSymbol
+					| F_VALUE <string expr> ")"	
+					| K_TRUE										# ActExprTrue
+					| K_FALSE										# ActExprFalse
+					| "(" <expression> ")"							# ActExprBracket
+					| SymbolDef										# ActValueSymbol
 					| LocalAddress
 					| MacroPlaceholder
 					;
 
-<string expr>		: <string expr> "+" <string result>
+<string expr>		: <string expr> "+" <string result>				# ActStrCat
 					| <string result>								# ActCopy1
-					| F_BUILD
-					| F_CHR <expression> ")"
-					| F_DATE
-					| F_HEX <expression> ")"
-					| F_HEX <expression> "," <expression> ")"
-					| F_LEFT <string expr> "," <expression> ")"
-					| F_LOWER <string expr> ")"
-					| F_MID <string expr> "," <expression> "," <expression> ")"
-					| F_RIGHT <string expr> "," <expression> ")"
-					| F_STRING <expression> ")"
-					| F_TIME
-					| F_UPPER <string expr> ")"
-					| F_VERSION
 					;
                 
 <string result>		: StringConstant								# ActStringConstant
+					| F_BUILD										# ActStrBuild
+					| F_CHR <expression> ")"						# ActStrChr
+					| F_DATE										# ActStrDate
+					| F_HEX <expression> ")"
+					| F_HEX <expression> "," <expression> ")"
+					| F_LEFT <string expr> "," <expression> ")"
+					| F_LOWER <string expr> ")"						# ActStrLower
+					| F_MID <string expr> "," <expression> "," <expression> ")"
+					| F_RIGHT <string expr> "," <expression> ")"
+					| F_STRING <expression> ")"
+					| F_TIME										# ActStrTime
+					| F_UPPER <string expr> ")"						# ActStrUpper
 					;  

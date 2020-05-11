@@ -24,15 +24,12 @@ const
 
 type
 
-  TSymbolType = (sytNone,sytBoolean,sytUnsigned1,sytUnsigned2,sytUnsigned4,
-                 sytSigned1,sytSigned2,sytSigned4,sytUnresolved);
-
   TSymbolEntry = record
     SymName:     string;      // Symbol name
-    SymType:     TSymbolType; // Symbol type (see above)
     SymPass:     integer;     // Pass defined in (1 or 2)
-    SymResolved: boolean;     // True if the value has been resolved
-    SymValue:    int64;       // Value
+    SymHasValue: boolean;     // True if a number value is associate with symbol
+    SymUsed:     boolean;     // True if the symbol has been reference
+    SymValue:    uint16;      // Value
     class operator = (se1, se2: TSymbolEntry): boolean;
   end;
 
@@ -44,13 +41,17 @@ type
       function  CalcHash(_name: string): integer;
       procedure CheckHashSize;
       procedure ClearHash;
+      procedure SetUsed(_index: integer);
     public
       constructor Create;
       destructor Destroy; override;
-      function Define(_pass: integer; const _name: string; const _variable: string): string;
-      function IndexOf(_key: string): integer;
-      function Exists(_name: string): boolean;
-      function Variable(_pass: integer; _name: string): string;
+      function  Define(_pass: integer; const _name: string; const _variable: string): string;
+      procedure Dump(_sl: TStringList);
+      function  IndexOf(_key: string): integer;
+      function  Exists(_name: string): boolean;
+      procedure SortByAddr;
+      procedure SortByName;
+      function  Variable(_pass: integer; _name: string; _default: UINT16): string;
   end;
 
 
@@ -65,45 +66,24 @@ end;
 
 { Utility routines }
 
-function SymTypeFromVariable(const _variable: string): TSymbolType;
+function NameCompareFunc(const se1, se2: TSymbolEntry): integer;
 begin
-  Result := sytNone;
-  if (Length(_variable) < 2) or (_variable[1] <> '&') then
-    raise Exception.Create('Variable error (' + _variable + ')');
-  case _variable[2] of
-    '1': Result := sytUnsigned1;
-    '2': Result := sytUnsigned2;
-    '3': Result := sytUnsigned4;
-    '4': Result := sytSigned1;
-    '5': Result := sytSigned2;
-    '6': Result := sytSigned4;
-    '7': Result := sytUnresolved;
-    'b': Result := sytBoolean;
-  end;
+  if se1.SymName = se2.SymName then
+    result := 0
+  else if se1.SymName > se2.SymName then
+    result := 1
+  else
+    result := -1;
 end;
 
-function VariableFromSymType(_symtype: TSymbolType; _value: int64): string;
+function AddrCompareFunc(const se1, se2: TSymbolEntry): integer;
 begin
-  case _symtype of
-    sytNone:       Result := '&7';
-    sytBoolean:    Result := '&b';
-    sytUnsigned1:  Result := '&1';
-    sytUnsigned2:  Result := '&2';
-    sytUnsigned4:  Result := '&3';
-    sytSigned1:    Result := '&4';
-    sytSigned2:    Result := '&5';
-    sytSigned4:    Result := '&6';
-    sytUnresolved: Result := '&7';
-  end;
-  Result := Result + IntToStr(_value);
-end;
-
-function ValueFromVariable(const _variable: string): int64;
-begin
-  Result := 0;
-  if (Length(_variable) < 2) or (_variable[1] <> '&') then
-    raise Exception.Create('Variable error (' + _variable + ')');
-  Result := StrToInt(Copy(_variable,3,32767));
+  if se1.SymValue = se2.SymValue then
+    Result := NameCompareFunc(se1,se2)
+  else if se1.SymValue > se2.SymValue then
+    Result := 1
+  else
+    Result := -1;
 end;
 
 { TSymbolTable }
@@ -189,15 +169,30 @@ begin
           else
             begin
               entry.SymName     := UpperCase(_name);
-              entry.SymType     := SymTypeFromVariable(_variable);
               entry.SymPass     := _pass;
-              entry.SymResolved := entry.SymType <> sytUnresolved;
-              entry.SymValue    := ValueFromVariable(_variable);
+              entry.SymHasValue := True;
+              entry.SymUsed     := False;
+              entry.SymValue    := StrToInt(_variable);
               AddHash(_name,Add(entry));
               CheckHashSize;
             end;
         end;
   end;
+end;
+
+procedure TSymbolTable.Dump(_sl: TStringList);
+var i: integer;
+    marker: string;
+begin
+  _sl.Add('HEX  DEC   ? NAME');
+  _sl.Add('---- ----- - ----');
+  for i := 0 to Count-1 do
+    begin
+      marker := ' ';
+      if not Items[i].SymUsed then
+        marker := '*';
+      _sl.Add(Format('%4.4X %5d %s %s',[Items[i].SymValue,Items[i].SymValue,marker,Items[i].SymName]));
+    end;
 end;
 
 function TSymbolTable.Exists(_name: string): boolean;
@@ -231,22 +226,42 @@ begin
     end;
 end;
 
-function TSymbolTable.Variable(_pass: integer; _name: string): string;
+procedure TSymbolTable.SetUsed(_index: integer);
+var rec: TSymbolEntry;
+begin
+  rec := Items[_index];
+  rec.SymUsed := True;
+  Items[_index] := rec;
+end;
+
+procedure TSymbolTable.SortByAddr;
+begin
+  Sort(@AddrCompareFunc);
+end;
+
+procedure TSymbolTable.SortByName;
+begin
+  Sort(@NameCompareFunc);
+end;
+
+function TSymbolTable.Variable(_pass: integer; _name: string; _default: UINT16): string;
 var i: integer;
 begin
   _name := UpperCase(_name);
   i := IndexOf(_name);
+  if i >= 0 then
+    SetUsed(i);
   case _pass of
     1:  begin
           if i < 0 then
-            Result := '&70'
+            Result := IntToStr(_default)
           else
-            Result := VariableFromSymType(Items[i].SymType,Items[i].SymValue);
+            Result := IntToStr(Items[i].SymValue);
         end;
     2:  begin
           if i < 0 then
             raise Exception.Create('Symbol ' + _name + ' not found');
-          Result := VariableFromSymType(Items[i].SymType,Items[i].SymValue);
+          Result := IntToStr(Items[i].SymValue);
         end;
   end;
 end;

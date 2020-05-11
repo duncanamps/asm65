@@ -7,7 +7,8 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   Classes, SysUtils, CustApp, fileinfo, usymbol, uutility, uassembler,
-  deployment_parser_module, deployment_parser_types, ufilestack, uexpression;
+  deployment_parser_module, deployment_parser_types, ufilestack, uexpression,
+  uoutput, uifstack;
 
 const
   DEFAULT_TAB_VALUE = 4;
@@ -40,7 +41,7 @@ type
   public
     constructor Create(TheOwner: TComponent); override;
     destructor Destroy; override;
-    procedure Monitor(Parser: TLCGParser; LogType: TLCGLogType; const Message: string);
+    procedure Monitor({%H-}Parser: TLCGParser; {%H-}LogType: TLCGLogType; const Message: string);
   end;
 
 { TAsm6502 }
@@ -188,27 +189,8 @@ begin
 end;
 
 procedure TAsm6502.Monitor(Parser: TLCGParser; LogType: TLCGLogType; const Message: string);
-var prefix: string;
-    lineinfo: string;
 begin
-  // Sort out prefix
-  case LogType of
-    ltInternal:    prefix := 'INTERNAL';
-    ltError:       prefix := '   ERROR';
-    ltWarning:     prefix := ' WARNING';
-    ltInfo,
-    ltVerbose,
-    ltWarAndPeace: prefix := '    INFO';
-    ltDebug:       prefix := '   DEBUG';
-    otherwise      prefix := '????????';
-  end;
-  // Add the line number info if available
-  if Assigned(Parser) and (Parser.InputLine > 0) then
-    lineinfo := Format('[%d:%d] ',[Parser.InputLine,Parser.InputColumn])
-  else
-    lineinfo := '';
-  // Issue the message
-  WriteLn(Format('%s: %s%s',[prefix,lineinfo,Message]));
+  WriteLn(Message);
 end;
 
 procedure TAsm6502.ProcessFilename(var filename: string; shortopt: char; longopt: string; defaultext: string);
