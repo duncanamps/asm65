@@ -231,7 +231,7 @@ LineComment2      = "//" {CommentChar}* ignore;
 					| K_IFNDEF   SymbolDef							# ActDirIfndef
 					| K_INCLUDE  <string expr>						# ActDirInclude
 					| K_LIST										# ActDirList
-					| K_MACRO	 SymbolDef <expression list>		# ActDirMacroExpr
+					| K_MACRO	 SymbolDef <expression list>		# ActDirMacro
 					| K_MACRO    SymbolDef							# ActDirMacroNoexpr
 					| K_MESSAGE  <string expr>						# ActDirMessage
 					| K_NOLIST 										# ActDirNolist
@@ -241,9 +241,9 @@ LineComment2      = "//" {CommentChar}* ignore;
 					| K_WARNING  <string expr>						# ActDirWarning
 					;
 
-<label> : "@" SymbolDef ":"											# ActLabelLocal
-          | SymbolDef ":"											# ActLabel
-		  ;
+<label>	: LocalAddress ":"											# ActLabelLocal
+		| SymbolDef ":"												# ActLabel
+		;
 
 <instruction> : OPCODE <Operand>									# ActInstruction
 			;
@@ -332,7 +332,7 @@ LineComment2      = "//" {CommentChar}* ignore;
 					| K_FALSE										# ActExprFalse
 					| "(" <expression> ")"							# ActExprBracket
 					| SymbolDef										# ActValueSymbol
-					| LocalAddress									# ActLocalAddress
+					| LocalAddress									# ActValueLocal
 					| MacroPlaceholder								# ActMacroPlaceholder
 					;
 

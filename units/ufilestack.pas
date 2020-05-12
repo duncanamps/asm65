@@ -29,8 +29,10 @@ type
     public
       constructor Create(_parser: TLCGParser);
       function  GetLine: string;
+      procedure InsertLine(const s: string);
       procedure Pop;
       procedure Push(filename: string);
+      procedure PushMacro(macroname: string; sl: TStringList; parms: TStringList);
       procedure Monitor(LogType: TLCGLogType; const Message: string);
       property EOF:       boolean          read GetEOF;
       property Filename:  string           read GetFilename;
@@ -96,6 +98,11 @@ begin
   Items[Count-1] := rec;
 end;
 
+procedure TFileStack.InsertLine(const s: string);
+begin
+  Top.List.Insert(InputLine,s);
+end;
+
 function TFileStack.GetTop: TFileStackEntry;
 begin
   if Count = 0 then
@@ -124,6 +131,26 @@ begin
   rec.Filename  := filename;
   rec.List := TStringList.Create;
   rec.List.LoadFromFile(filename);
+  rec.InputLine := 0;
+  Add(rec);
+end;
+
+procedure TFileStack.PushMacro(macroname: string; sl: TStringList; parms: TStringList);
+var rec: TFileStackEntry;
+    i,j: integer;
+begin
+  macroname := UpperCase(macroname);
+  rec.Filename := 'MACRO '+ macroname;
+  if Exists(rec.Filename) then
+    Monitor(ltError,'Circular macro reference in macro ' + macroname);
+  rec.List := TStringList.Create;
+  rec.List.Assign(sl);
+  // Delete last record (the .ENDM)
+  rec.List.Delete(rec.List.Count-1);
+  // Now go and change all the @n into parameters
+  for i := 0 to rec.List.Count-1 do
+    for j := 0 to parms.Count-1 do
+      rec.List[i] := StringReplace(rec.List[i],'@'+IntToStr(j),parms[j],[rfReplaceAll]);
   rec.InputLine := 0;
   Add(rec);
 end;

@@ -182,6 +182,7 @@ begin
               entry.SymPass     := _pass;
               entry.SymHasValue := False;
               entry.SymUsed     := False;
+              entry.SymValue    := 0;
               AddHash(_name,Add(entry));
               CheckHashSize;
             end;
@@ -226,7 +227,6 @@ begin
               index := IndexOf(_name);
               entry := Items[index];
               entry.SymPass := _pass;
-              entry.SymValue    := StrToInt(_variable);
               Items[index] := entry;
             end
           else

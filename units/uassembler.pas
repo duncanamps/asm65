@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, deployment_parser_module, deployment_parser_types,
-  ufilestack, usymbol, uasmglobals, uoutput, uifstack;
+  ufilestack, usymbol, uasmglobals, uoutput, uifstack, umacro;
 
 
 type
@@ -19,6 +19,7 @@ type
       FAssemblyStart:  TDateTime;
       FBytesFromLine:  integer;
       FBytesTotal:     integer;
+      FDefiningMacro:  boolean;
       FFilenameSrc:    string;
       FFileStack:      TFileStack;
       FIfStack:        TIfStack;
@@ -27,12 +28,18 @@ type
       FList:           boolean;
       FListNext:       boolean;
       FListing:        TStringList;
+      FLocalPrefix:    string;
+      FMacroCapture:   TStringList;
+      FMacroName:      string;
+      FMacroList:      TMacroList;
       FOutput:         TOutput;
       FOutputArr:      TOutputSequence;
       FOpCode:         TOpCode;
       FOrg:            UINT16;
       FPass:           integer;
       FProcArray:      array of TLCGParserProc;
+      FProcessMacro:   string;
+      FProcessParms:   string;
       FStreamLog:      TFileStream;
       FSymbols:        TSymbolTable;
       FTabSize:        integer;
@@ -45,19 +52,24 @@ type
       function  ActCompNE(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActCopy1(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDecLiteral(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActDirByte(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDB(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDefine(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDefineExpr(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActDirDefmacro(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDS(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDSZ(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirElse(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirEndif(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActDirEndm(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirError(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirIf(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirIfdef(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirIfndef(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirInclude(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirList(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActDirMacro(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActDirMacroNoexpr(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirMessage(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirNolist(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirOrg(_parser: TLCGParser): TLCGParserStackEntry;
@@ -88,9 +100,11 @@ type
       function  ActIgnore(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActInstruction(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActLabel(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActLabelLocal(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActLogAnd(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActLogNot(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActLogOr(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActMacroPlaceholder(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActOctLiteral(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActSetOpA(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActSetOpAbs(_parser: TLCGParser): TLCGParserStackEntry;
@@ -115,6 +129,7 @@ type
       function  ActStrString(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActStrTime(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActStrUpper(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActValueLocal(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActValueOrg(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActValueSymbol(_parser: TLCGParser): TLCGParserStackEntry;
       procedure FilesClose;
@@ -123,8 +138,11 @@ type
       procedure InitStart;
       procedure OutputListingLine(const _asmline: string);
       procedure ProcessFile(const _fn: string);
+      procedure ProcessFileInner;
+      function  ProcessingAllowed: boolean;
+      procedure ProcessMacroExpansion;
       procedure ProcessLine(const _line: string);
-      procedure RegisterProc(const _procname: string; _proc: TLCGParserProc);
+      procedure RegisterProc(const _procname: string; _proc: TLCGParserProc; _procs: TStringArray);
       procedure RegisterProcs;
       procedure SetFilenameSrc(const _fn: string);
       procedure SetOnMonitor(_monitor: TLCGMonitorProc);
@@ -241,6 +259,7 @@ begin
   FIfStack   := TIfStack.Create(Self);
   FOutput := TOutput.Create;
   FListing := TStringList.Create;
+  FMacroList := TMacroList.Create;
   FPass := 0;
   FTabSize := 4;
   FVerbose := False;
@@ -250,6 +269,7 @@ end;
 
 destructor TAssembler.Destroy;
 begin
+  FMacroList.Free;
   FListing.Free;
   FOutput.Free;
   FIfStack.Free;
@@ -322,12 +342,30 @@ begin
   Result.Buf := IntToStr(StrToInt(_parser.ParserStack[_parser.ParserSP-1].Buf));
 end;
 
+function TAssembler.ActDirByte(_parser: TLCGParser): TLCGParserStackEntry;
+var bval: integer;
+    bcount: integer;
+    i:      integer;
+begin
+  if not ProcessingAllowed then
+    Exit;
+  bval   := StrToInt(_parser.ParserStack[_parser.ParserSP-3].Buf);
+  bcount := StrToInt(_parser.ParserStack[_parser.ParserSP-1].Buf);
+  if bcount < 1 then
+    Monitor(ltError,'Byte count must be greater than zero');
+  FBytesFromLine := bcount;
+  SetLength(FOutputArr,bcount);
+  for i := 0 to bcount-1 do
+    FOutputArr[i] := bval and $00FF;
+  Result.Buf := '';
+end;
+
 function TAssembler.ActDirDB(_parser: TLCGParser): TLCGParserStackEntry;
 var sl: TStringList;
     i:   integer;
     bval: integer;
 begin
-  if not FIfStack.Allowed then
+  if not ProcessingAllowed then
     Exit;
   sl := TStringList.Create;
   try
@@ -353,7 +391,7 @@ function TAssembler.ActDirDefine(_parser: TLCGParser): TLCGParserStackEntry;
 var symbolname: string;
     message:    string;
 begin
-  if not FIfStack.Allowed then
+  if not ProcessingAllowed then
     Exit;
   symbolname := _parser.ParserStack[_parser.ParserSP-1].Buf;
   message := FSymbols.Define(FPass,symbolname);
@@ -367,7 +405,7 @@ var symbolname: string;
     expression: string;
     message:    string;
 begin
-  if not FIfStack.Allowed then
+  if not ProcessingAllowed then
     Exit;
   symbolname := _parser.ParserStack[_parser.ParserSP-3].Buf;
   expression := _parser.ParserStack[_parser.ParserSP-1].Buf;
@@ -377,11 +415,26 @@ begin
   Result.Buf := '';
 end;
 
+function TAssembler.ActDirDefmacro(_parser: TLCGParser): TLCGParserStackEntry;
+begin
+  if not FIfStack.Allowed then
+    exit;
+  if FDefiningMacro then
+    Monitor(ltError,'.DEFMACRO cannot be nested');
+  FDefiningMacro := True;
+  FMacroName := UpperCase(_parser.ParserStack[_parser.ParserSP-1].Buf);
+  if FMacroList.IndexOf(FMacroName) >= 0 then
+    Monitor(ltError,'Macro %s is already defined',[FMacroName]);
+  FMacroCapture := TStringList.Create;
+  Monitor(ltWarAndPeace,'Defining macro %s',[FMacroName]);
+  Result.Buf := '';
+end;
+
 function TAssembler.ActDirDS(_parser: TLCGParser): TLCGParserStackEntry;
 var i:   integer;
     s:   string;
 begin
-  if not FIfStack.Allowed then
+  if not ProcessingAllowed then
     Exit;
   s := _parser.ParserStack[_parser.ParserSP-1].Buf;
   FBytesFromLine := Length(s);
@@ -396,7 +449,7 @@ function TAssembler.ActDirDSZ(_parser: TLCGParser): TLCGParserStackEntry;
 var i:   integer;
     s:   string;
 begin
-  if not FIfStack.Allowed then
+  if not ProcessingAllowed then
     Exit;
   s := _parser.ParserStack[_parser.ParserSP-1].Buf;
   FBytesFromLine := Length(s) + 1;
@@ -420,9 +473,21 @@ begin
   Result.Buf := '';
 end;
 
-function TAssembler.ActDirError(_parser: TLCGParser): TLCGParserStackEntry;
+function TAssembler.ActDirEndm(_parser: TLCGParser): TLCGParserStackEntry;
 begin
   if not FIfStack.Allowed then
+    exit;
+  FMacroList.Add(FMacroName,FMacroCapture);
+  FDefiningMacro := False;
+  FMacroName := '';
+  FMacroCapture := nil;
+  Monitor(ltWarAndPeace,'End of defining macro %s',[FMacroName]);
+  Result.Buf := '';
+end;
+
+function TAssembler.ActDirError(_parser: TLCGParser): TLCGParserStackEntry;
+begin
+  if not ProcessingAllowed then
     Exit;
   Monitor(ltError,_parser.ParserStack[_parser.ParserSP-1].Buf);
   Result.Buf := '';
@@ -459,7 +524,7 @@ var parentfile: string;
     myfile:     string;
     saveddir:   string;
 begin
-  if not FIfStack.Allowed then
+  if not ProcessingAllowed then
     Exit;
   saveddir := GetCurrentDir;
   parentfile := FFileStack.Filename;
@@ -473,16 +538,34 @@ end;
 
 function TAssembler.ActDirList(_parser: TLCGParser): TLCGParserStackEntry;
 begin
-  if not FIfStack.Allowed then
+  if not ProcessingAllowed then
     Exit;
   FList := True;
   FListNext := True;
   Result.Buf := '';
 end;
 
+function TAssembler.ActDirMacro(_parser: TLCGParser): TLCGParserStackEntry;
+begin
+  if not ProcessingAllowed then
+    Exit;
+  FProcessMacro := UpperCase(_parser.ParserStack[_parser.ParserSP-2].Buf);
+  FProcessParms := _parser.ParserStack[_parser.ParserSP-1].Buf;
+  Result.Buf := '';
+end;
+
+function TAssembler.ActDirMacroNoexpr(_parser: TLCGParser): TLCGParserStackEntry;
+begin
+  if not ProcessingAllowed then
+    Exit;
+  FProcessMacro := UpperCase(_parser.ParserStack[_parser.ParserSP-1].Buf);
+  FProcessParms := '';
+  Result.Buf := '';
+end;
+
 function TAssembler.ActDirMessage(_parser: TLCGParser): TLCGParserStackEntry;
 begin
-  if not FIfStack.Allowed then
+  if not ProcessingAllowed then
     Exit;
   Monitor(ltInfo,_parser.ParserStack[_parser.ParserSP-1].Buf);
   Result.Buf := '';
@@ -490,7 +573,7 @@ end;
 
 function TAssembler.ActDirNoList(_parser: TLCGParser): TLCGParserStackEntry;
 begin
-  if not FIfStack.Allowed then
+  if not ProcessingAllowed then
     Exit;
   FListNext := False;
   Result.Buf := '';
@@ -498,7 +581,7 @@ end;
 
 function TAssembler.ActDirOrg(_parser: TLCGParser): TLCGParserStackEntry;
 begin
-  if not FIfStack.Allowed then
+  if not ProcessingAllowed then
     Exit;
   FOrg := StrToInt(_parser.ParserStack[_parser.ParserSP-1].Buf);
   Result.Buf := '';
@@ -506,7 +589,7 @@ end;
 
 function TAssembler.ActDirWarning(_parser: TLCGParser): TLCGParserStackEntry;
 begin
-  if not FIfStack.Allowed then
+  if not ProcessingAllowed then
     Exit;
   Monitor(ltWarning,_parser.ParserStack[_parser.ParserSP-1].Buf);
   Result.Buf := '';
@@ -668,6 +751,8 @@ var opstr: string;
     found: boolean;
     instr: byte;
 begin
+  if not ProcessingAllowed then
+    Exit;
   // We have the operand type and address in FAddrMode / FAddr, find opcode
   opstr := UpperCase(_parser.ParserStack[_parser.ParserSP-2].Buf);
   found := False;
@@ -702,7 +787,7 @@ begin
     Monitor(ltError,'Illegal opcode and operand combination');
   instr := CodeTable[FOpCode][FAddrMode];
   // @@@@@ Code here to write out instruction data
-  if FIfStack.Allowed then
+  if ProcessingAllowed then
     begin
       FBytesFromLine := InstructionSizes[FAddrMode];
       SetLength(FOutputArr,FBytesFromLine);
@@ -718,7 +803,21 @@ function TAssembler.ActLabel(_parser: TLCGParser): TLCGParserStackEntry;
 var symbolname: string;
     expression: string;
 begin
+  if not ProcessingAllowed then
+    Exit;
   symbolname := _parser.ParserStack[_parser.ParserSP-2].Buf;
+  expression := IntToStr(FOrg);
+  FSymbols.Define(FPass,symbolname,expression);
+  Result.Buf := '';
+end;
+
+function TAssembler.ActLabelLocal(_parser: TLCGParser): TLCGParserStackEntry;
+var symbolname: string;
+    expression: string;
+begin
+  if not ProcessingAllowed then
+    Exit;
+  symbolname := FLocalPrefix + _parser.ParserStack[_parser.ParserSP-2].Buf;
   expression := IntToStr(FOrg);
   FSymbols.Define(FPass,symbolname,expression);
   Result.Buf := '';
@@ -748,6 +847,14 @@ begin
     result.Buf := '1'
   else
     result.Buf := '0';
+end;
+
+function TAssembler.ActMacroPlaceholder(_parser: TLCGParser): TLCGParserStackEntry;
+begin
+  // We will only end up here if a macro parameter was not expanded
+  if ProcessingAllowed then
+    Monitor(ltError,'@ macro placeholder used without a corresponding parameter');
+  Result.Buf := IntToStr(FOrg);
 end;
 
 function TAssembler.ActOctLiteral(_parser: TLCGParser): TLCGParserStackEntry;
@@ -924,6 +1031,14 @@ begin
   Result.Buf := IntToStr(FOrg);
 end;
 
+function TAssembler.ActValueLocal(_parser: TLCGParser): TLCGParserStackEntry;
+begin
+  if not ProcessingAllowed then
+    Result.Buf := IntToStr(FOrg)
+  else
+    Result.Buf := FSymbols.Variable(FPass,FLocalPrefix+_parser.ParserStack[_parser.ParserSP-1].Buf,FOrg);
+end;
+
 function TAssembler.ActValueSymbol(_parser: TLCGParser): TLCGParserStackEntry;
 begin
   Result.Buf := FSymbols.Variable(FPass,_parser.ParserStack[_parser.ParserSP-1].Buf,FOrg);
@@ -959,6 +1074,8 @@ begin
   Monitor(ltInfo,'ASSEMBLER PASS %d',[_pass]);
   InitPass;
   ProcessFile(FFilenameSrc);
+  if FDefiningMacro then
+    Monitor(ltError,'Pass terminated unexpectedly in the middle of a .MACRO block');
 end;
 
 procedure TAssembler.FilesClose;
@@ -983,9 +1100,12 @@ end;
 procedure TAssembler.InitPass;
 begin
   FBytesTotal := 0;
+  FDefiningMacro := False;
   FLineCount := 0;
   FList := True;
   FListNext := True;
+  FMacroList.Clear;
+  FMacroList.Init;
   FOrg := $0200;
   FOutput.Clear;
 end;
@@ -1057,7 +1177,7 @@ var byteindex: integer;
     i:         integer;
     s:         string;
 begin
-  if (FPass = 1) or (FFileStack.Count > 1) or (not FList) or (not FIfStack.Allowed) then
+  if (FPass = 1) {or (FFileStack.Count > 1)} or (not FList) { or (not ProcessingAllowed)} then
     Exit;
   if FBytesFromLine = 0 then
     FListing.Add(StringOfChar(' ',HEX_WIDTH) + ExpandTabs(_asmline,FTabSize))
@@ -1093,43 +1213,87 @@ begin
 end;
 
 procedure TAssembler.ProcessFile(const _fn: string);
-var asmline: string;
-    incl:    string;
 begin
   Monitor(ltWarAndPeace,'Processing file %s',[_fn]);
   FFileStack.Push(_fn);
   try
-    while not FFileStack.EOF do
-      begin
-        asmline := FFileStack.GetLine;
-        if LogLevel >= ltDebug then
-          Monitor(ltDebug,'> ' + asmline);
-        Inc(FLineCount);
-        // Assemble the line here
-        if asmline <> '' then
-          begin
-            ProcessLine(asmline);
-            // Add to listing
-            OutputListingLine(asmline);
-            // Bump org
-            FOrg := FOrg + FBytesFromLine;
-            FBytesTotal := FBytesTotal + FBytesFromLine;
-            // Check to see if listing flag has changed
-            FList := FListNext;
-            // Check to see if we created a new include file to use
-            if FIncludeNext <> '' then
-              begin
-                incl := FIncludeNext;
-                FIncludeNext := '';
-                ProcessFile(incl); // Recursive!!!
-              end;
-          end
-        else
-          OutputListingLine(asmline);
-      end;
+    ProcessFileInner;
   finally
     FFileStack.Pop();
   end;
+end;
+
+procedure TAssembler.ProcessFileInner;
+var asmline: string;
+    incl:    string;
+begin
+  while not FFileStack.EOF do
+    begin
+      asmline := FFileStack.GetLine;
+      if LogLevel >= ltDebug then
+        Monitor(ltDebug,'> ' + asmline);
+      Inc(FLineCount);
+      // Check for macro definition
+      if FDefiningMacro then
+        FMacroCapture.Add(asmline);
+      // Assemble the line here
+      if asmline <> '' then
+        begin
+          ProcessLine(asmline);
+          // Add to listing
+          OutputListingLine(asmline);
+          // Bump org
+          FOrg := FOrg + FBytesFromLine;
+          FBytesTotal := FBytesTotal + FBytesFromLine;
+          // Check to see if listing flag has changed
+          FList := FListNext;
+          // Check to see if there is a macro to expand
+          if FProcessMacro <> '' then
+            ProcessMacroExpansion;
+          // Check to see if we created a new include file to use
+          if FIncludeNext <> '' then
+            begin
+              incl := FIncludeNext;
+              FIncludeNext := '';
+              ProcessFile(incl); // Recursive!!!
+            end;
+        end
+      else
+        OutputListingLine(asmline);
+    end;
+end;
+
+procedure TAssembler.ProcessMacroExpansion;
+var parms:      TStringList;
+    index:   integer;
+    sl:      TStringList;
+    savedprefix: string;
+begin
+  // Insert the macro definition into the current "stream"
+  index := FMacroList.IndexOf(FProcessMacro);
+  if index < 0 then
+    Monitor(ltError,'Macro %s is not defined',[FProcessMacro]);
+  parms := TStringList.Create;
+  try
+    savedprefix := FLocalPrefix;
+    FLocalPrefix := FMacroList.LocalPrefix;
+    parms.Delimiter := ',';
+    parms.DelimitedText := FProcessParms;
+    sl := FMacroList.Items[index].FList;
+    FFileStack.PushMacro(FProcessMacro,sl,parms);
+    FProcessMacro := '';
+    FProcessParms := '';
+    ProcessFileInner;
+    FFileStack.Pop;
+    FLocalPrefix := savedprefix;
+  finally
+    parms.Free;
+  end;
+end;
+
+function TAssembler.ProcessingAllowed: boolean;
+begin
+  Result := FIfStack.Allowed and (not FDefiningMacro);
 end;
 
 procedure TAssembler.ProcessLine(const _line: string);
@@ -1154,13 +1318,13 @@ begin
     Monitor(ltInternal,'Code not defined for rule no. %d (%s)',[RuleIndex,RuleProcs[RuleIndex]]);
 end;
 
-procedure TAssembler.RegisterProc(const _procname: string; _proc: TLCGParserProc);
+procedure TAssembler.RegisterProc(const _procname: string; _proc: TLCGParserProc; _procs: TStringArray);
 var i: integer;
     done_one: boolean;
 begin
   done_one := False;
   for i := 0 to Rules-1 do
-    if RuleProcs[i] = _procname then
+    if _procs[i] = _procname then
       begin
         FProcArray[i] := _proc;
         done_one := True;
@@ -1170,87 +1334,97 @@ begin
 end;
 
 procedure TAssembler.RegisterProcs;
+var _procs: TStringArray;
 begin
-  RegisterProc('ActCopy1',          @ActCopy1);
-  RegisterProc('ActCompEQ',         @ActCompEQ);
-  RegisterProc('ActCompGE',         @ActCompGE);
-  RegisterProc('ActCompGT',         @ActCompGT);
-  RegisterProc('ActCompLE',         @ActCompLE);
-  RegisterProc('ActCompLT',         @ActCompLT);
-  RegisterProc('ActCompNE',         @ActCompNE);
-  RegisterProc('ActDecLiteral',     @ActDecLiteral);
-  RegisterProc('ActDirDB',          @ActDirDB);
-  RegisterProc('ActDirDefine',      @ActDirDefine);
-  RegisterProc('ActDirDefineExpr',  @ActDirDefineExpr);
-  RegisterProc('ActDirDS',          @ActDirDS);
-  RegisterProc('ActDirDSZ',         @ActDirDSZ);
-  RegisterProc('ActDirElse',        @ActDirElse);
-  RegisterProc('ActDirEndif',       @ActDirEndif);
-  RegisterProc('ActDirError',       @ActDirError);
-  RegisterProc('ActDirIf',          @ActDirIf);
-  RegisterProc('ActDirIfdef',       @ActDirIfdef);
-  RegisterProc('ActDirIfndef',      @ActDirIfndef);
-  RegisterProc('ActDirInclude',     @ActDirInclude);
-  RegisterProc('ActDirList',        @ActDirList);
-  RegisterProc('ActDirMessage',     @ActDirMessage);
-  RegisterProc('ActDirNolist',      @ActDirNolist);
-  RegisterProc('ActDirOrg',         @ActDirOrg);
-  RegisterProc('ActDirWarning',     @ActDirWarning);
-  RegisterProc('ActExprAdd',        @ActExprAdd);
-  RegisterProc('ActExprAnd',        @ActExprAnd);
-  RegisterProc('ActExprBracket',    @ActExprBracket);
-  RegisterProc('ActExprDiv',        @ActExprDiv);
-  RegisterProc('ActExprFalse',      @ActExprFalse);
-  RegisterProc('ActExprList',       @ActExprList);
-  RegisterProc('ActExprMinus',      @ActExprMinus);
-  RegisterProc('ActExprMod',        @ActExprMod);
-  RegisterProc('ActExprMul',        @ActExprMul);
-  RegisterProc('ActExprNot',        @ActExprNot);
-  RegisterProc('ActExprOr',         @ActExprOr);
-  RegisterProc('ActExprShl',        @ActExprShl);
-  RegisterProc('ActExprShr',        @ActExprShr);
-  RegisterProc('ActExprSub',        @ActExprSub);
-  RegisterProc('ActExprTrue',       @ActExprTrue);
-  RegisterProc('ActExprXor',        @ActExprXor);
-  RegisterProc('ActFuncAsc',        @ActFuncAsc);
-  RegisterProc('ActFuncHigh',       @ActFuncHigh);
-  RegisterProc('ActFuncIif',        @ActFuncIif);
-  RegisterProc('ActFuncLow',        @ActFuncLow);
-  RegisterProc('ActFuncPos',        @ActFuncPos);
-  RegisterProc('ActFuncValue',      @ActFuncValue);
-  RegisterProc('ActHexLiteral',     @ActHexLiteral);
-  RegisterProc('ActIgnore',         @ActIgnore);
-  RegisterProc('ActInstruction',    @ActInstruction);
-  RegisterProc('ActLabel',          @ActLabel);
-  RegisterProc('ActLogAnd',         @ActLogAnd);
-  RegisterProc('ActLogNot',         @ActLogNot);
-  RegisterProc('ActLogOr',          @ActLogOr);
-  RegisterProc('ActOctLiteral',     @ActOctLiteral);
-  RegisterProc('ActSetOpA',         @ActSetOpA);
-  RegisterProc('ActSetOpAbs',       @ActSetOpAbs);
-  RegisterProc('ActSetOpAbsX',      @ActSetOpAbsX);
-  RegisterProc('ActSetOpAbsY',      @ActSetOpAbsY);
-  RegisterProc('ActSetOpImmed',     @ActSetOpImmed);
-  RegisterProc('ActSetOpImpl',      @ActSetOpImpl);
-  RegisterProc('ActSetOpIndX',      @ActSetOpIndX);
-  RegisterProc('ActSetOpIndY',      @ActSetOpIndY);
-  RegisterProc('ActSetOpInd',       @ActSetOpInd);
-  RegisterProc('ActStrBuild',       @ActStrBuild);
-  RegisterProc('ActStrCat',         @ActStrCat);
-  RegisterProc('ActStrChr',         @ActStrChr);
-  RegisterProc('ActStrDate',        @ActStrDate);
-  RegisterProc('ActStrHex1',        @ActStrHex1);
-  RegisterProc('ActStrHex2',        @ActStrHex2);
-  RegisterProc('ActStringConstant', @ActStringConstant);
-  RegisterProc('ActStrLeft',        @ActStrLeft);
-  RegisterProc('ActStrLower',       @ActStrLower);
-  RegisterProc('ActStrMid',         @ActStrMid);
-  RegisterProc('ActStrRight',       @ActStrRight);
-  RegisterProc('ActStrString',      @ActStrString);
-  RegisterProc('ActStrTime',        @ActStrTime);
-  RegisterProc('ActStrUpper',       @ActStrUpper);
-  RegisterProc('ActValueOrg',       @ActValueOrg);
-  RegisterProc('ActValueSymbol',    @ActValueSymbol);
+  _procs := RuleProcs;
+  RegisterProc('ActCopy1',          @ActCopy1, _procs);
+  RegisterProc('ActCompEQ',         @ActCompEQ, _procs);
+  RegisterProc('ActCompGE',         @ActCompGE, _procs);
+  RegisterProc('ActCompGT',         @ActCompGT, _procs);
+  RegisterProc('ActCompLE',         @ActCompLE, _procs);
+  RegisterProc('ActCompLT',         @ActCompLT, _procs);
+  RegisterProc('ActCompNE',         @ActCompNE, _procs);
+  RegisterProc('ActDecLiteral',     @ActDecLiteral, _procs);
+  RegisterProc('ActDirByte',        @ActDirByte, _procs);
+  RegisterProc('ActDirDB',          @ActDirDB, _procs);
+  RegisterProc('ActDirDefine',      @ActDirDefine, _procs);
+  RegisterProc('ActDirDefineExpr',  @ActDirDefineExpr, _procs);
+  RegisterProc('ActDirDefmacro',    @ActDirDefmacro, _procs);
+  RegisterProc('ActDirDS',          @ActDirDS, _procs);
+  RegisterProc('ActDirDSZ',         @ActDirDSZ, _procs);
+  RegisterProc('ActDirElse',        @ActDirElse, _procs);
+  RegisterProc('ActDirEndif',       @ActDirEndif, _procs);
+  RegisterProc('ActDirEndm',        @ActDirEndm, _procs);
+  RegisterProc('ActDirError',       @ActDirError, _procs);
+  RegisterProc('ActDirIf',          @ActDirIf, _procs);
+  RegisterProc('ActDirIfdef',       @ActDirIfdef, _procs);
+  RegisterProc('ActDirIfndef',      @ActDirIfndef, _procs);
+  RegisterProc('ActDirInclude',     @ActDirInclude, _procs);
+  RegisterProc('ActDirList',        @ActDirList, _procs);
+  RegisterProc('ActDirMacro',       @ActDirMacro, _procs);
+  RegisterProc('ActDirMacroNoexpr', @ActDirMacroNoexpr, _procs);
+  RegisterProc('ActDirMessage',     @ActDirMessage, _procs);
+  RegisterProc('ActDirNolist',      @ActDirNolist, _procs);
+  RegisterProc('ActDirOrg',         @ActDirOrg, _procs);
+  RegisterProc('ActDirWarning',     @ActDirWarning, _procs);
+  RegisterProc('ActExprAdd',        @ActExprAdd, _procs);
+  RegisterProc('ActExprAnd',        @ActExprAnd, _procs);
+  RegisterProc('ActExprBracket',    @ActExprBracket, _procs);
+  RegisterProc('ActExprDiv',        @ActExprDiv, _procs);
+  RegisterProc('ActExprFalse',      @ActExprFalse, _procs);
+  RegisterProc('ActExprList',       @ActExprList, _procs);
+  RegisterProc('ActExprMinus',      @ActExprMinus, _procs);
+  RegisterProc('ActExprMod',        @ActExprMod, _procs);
+  RegisterProc('ActExprMul',        @ActExprMul, _procs);
+  RegisterProc('ActExprNot',        @ActExprNot, _procs);
+  RegisterProc('ActExprOr',         @ActExprOr, _procs);
+  RegisterProc('ActExprShl',        @ActExprShl, _procs);
+  RegisterProc('ActExprShr',        @ActExprShr, _procs);
+  RegisterProc('ActExprSub',        @ActExprSub, _procs);
+  RegisterProc('ActExprTrue',       @ActExprTrue, _procs);
+  RegisterProc('ActExprXor',        @ActExprXor, _procs);
+  RegisterProc('ActFuncAsc',        @ActFuncAsc, _procs);
+  RegisterProc('ActFuncHigh',       @ActFuncHigh, _procs);
+  RegisterProc('ActFuncIif',        @ActFuncIif, _procs);
+  RegisterProc('ActFuncLow',        @ActFuncLow, _procs);
+  RegisterProc('ActFuncPos',        @ActFuncPos, _procs);
+  RegisterProc('ActFuncValue',      @ActFuncValue, _procs);
+  RegisterProc('ActHexLiteral',     @ActHexLiteral, _procs);
+  RegisterProc('ActIgnore',         @ActIgnore, _procs);
+  RegisterProc('ActInstruction',    @ActInstruction, _procs);
+  RegisterProc('ActLabel',          @ActLabel, _procs);
+  RegisterProc('ActLabelLocal',     @ActLabelLocal, _procs);
+  RegisterProc('ActLogAnd',         @ActLogAnd, _procs);
+  RegisterProc('ActLogNot',         @ActLogNot, _procs);
+  RegisterProc('ActLogOr',          @ActLogOr, _procs);
+  RegisterProc('ActMacroPlaceholder', @ActMacroPlaceholder, _procs);
+  RegisterProc('ActOctLiteral',     @ActOctLiteral, _procs);
+  RegisterProc('ActSetOpA',         @ActSetOpA, _procs);
+  RegisterProc('ActSetOpAbs',       @ActSetOpAbs, _procs);
+  RegisterProc('ActSetOpAbsX',      @ActSetOpAbsX, _procs);
+  RegisterProc('ActSetOpAbsY',      @ActSetOpAbsY, _procs);
+  RegisterProc('ActSetOpImmed',     @ActSetOpImmed, _procs);
+  RegisterProc('ActSetOpImpl',      @ActSetOpImpl, _procs);
+  RegisterProc('ActSetOpIndX',      @ActSetOpIndX, _procs);
+  RegisterProc('ActSetOpIndY',      @ActSetOpIndY, _procs);
+  RegisterProc('ActSetOpInd',       @ActSetOpInd, _procs);
+  RegisterProc('ActStrBuild',       @ActStrBuild, _procs);
+  RegisterProc('ActStrCat',         @ActStrCat, _procs);
+  RegisterProc('ActStrChr',         @ActStrChr, _procs);
+  RegisterProc('ActStrDate',        @ActStrDate, _procs);
+  RegisterProc('ActStrHex1',        @ActStrHex1, _procs);
+  RegisterProc('ActStrHex2',        @ActStrHex2, _procs);
+  RegisterProc('ActStringConstant', @ActStringConstant, _procs);
+  RegisterProc('ActStrLeft',        @ActStrLeft, _procs);
+  RegisterProc('ActStrLower',       @ActStrLower, _procs);
+  RegisterProc('ActStrMid',         @ActStrMid, _procs);
+  RegisterProc('ActStrRight',       @ActStrRight, _procs);
+  RegisterProc('ActStrString',      @ActStrString, _procs);
+  RegisterProc('ActStrTime',        @ActStrTime, _procs);
+  RegisterProc('ActStrUpper',       @ActStrUpper, _procs);
+  RegisterProc('ActValueLocal',     @ActValueLocal, _procs);
+  RegisterProc('ActValueOrg',       @ActValueOrg, _procs);
+  RegisterProc('ActValueSymbol',    @ActValueSymbol, _procs);
 end;
 
 procedure TAssembler.SetFilenameSrc(const _fn: string);

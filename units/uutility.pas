@@ -15,6 +15,7 @@ implementation
 
 function ExpandTabs(const _s: string; tabsize: integer): string;
 var i: integer;
+    amt: integer;
 begin
   Result := '';
   for i := 1 to Length(_s) do
@@ -22,9 +23,16 @@ begin
       if _s[i] <> #9 then
         Result := Result + _s[i]
       else
+        begin
+          amt := Length(Result) mod tabsize;
+          amt := tabsize - amt;
+          Result := Result + Space(amt);
+        end;
+        {
         repeat
           Result := Result + ' ';
         until (Length(Result) mod tabsize) = 0;
+        }
     end;
 end;
 

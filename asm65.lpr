@@ -8,7 +8,7 @@ uses
   {$ENDIF}{$ENDIF}
   Classes, SysUtils, CustApp, fileinfo, usymbol, uutility, uassembler,
   deployment_parser_module, deployment_parser_types, ufilestack, uexpression,
-  uoutput, uifstack;
+  uoutput, uifstack, umacro;
 
 const
   DEFAULT_TAB_VALUE = 4;
