@@ -33,10 +33,10 @@
 {DigitHex}		= {Digit} + [ABCDEFabcdef];
 {DigitNonZero}	= [123456789];
 {DigitOct}		= [01234567];
+{Backslash}     = [\x5c];
+{Escaped}       = [\x5c\x22tnr];
 {DQuote}		= [\x22];
-{Quotable}		= {Printable} - {DQuote};
-
-{CommentChar}	= {Printable} + {Tab};
+{CommentChar}	= {Printable} - {DQuote} - {Backslash} + {Tab};
 
 {SymbolStart}	= {Letter} + [_];
 {SymbolMid}		= {SymbolStart} + {Digit};                                    
@@ -153,7 +153,6 @@ F_LOWER				= MIXED("LOWER(")		keyword;
 F_MID				= MIXED("MID(")			keyword;
 F_ORG				= MIXED("ORG")			keyword;
 F_POS				= MIXED("POS(")			keyword;
-F_POSCI				= MIXED("POSCI(")		keyword;
 F_RIGHT				= MIXED("RIGHT(")		keyword;
 F_STRING			= MIXED("STRING(")		keyword;
 F_TIME				= MIXED("TIME()")		keyword;
@@ -187,7 +186,7 @@ K_WARNING			= MIXED(".WARNING")		keyword;
 
 LocalAddress		= "@" {SymbolStart}{SymbolMid}*;
 MacroPlaceholder	= "@"{Digit};
-StringConstant		= {DQuote} {Quotable}* {DQuote};                 
+StringConstant		= {DQuote} ({CommentChar} | {Backslash} {Escaped})* {DQuote};                 
 SymbolDef			= {SymbolStart}{SymbolMid}*;   
 Whitespace			= {Whitespace}+ ignore;                 
                  
@@ -242,7 +241,7 @@ LineComment2      = "//" {CommentChar}* ignore;
 					| K_WARNING  <string expr>						# ActDirWarning
 					;
 
-<label> : "@" SymbolDef ":"											
+<label> : "@" SymbolDef ":"											# ActLabelLocal
           | SymbolDef ":"											# ActLabel
 		  ;
 
@@ -323,19 +322,18 @@ LineComment2      = "//" {CommentChar}* ignore;
 					| DecLiteral									# ActDecLiteral
 					| OctLiteral									# ActOctLiteral
 					| BinLiteral									# ActBinLiteral
-					| F_ASC <string expr> ")"
+					| F_ASC <string expr> ")"						# ActFuncAsc
 					| F_HIGH <expression> ")"						# ActFuncHigh
-					| F_IIF <expression> "," <expression> "," <expression> ")"
+					| F_IIF <expression> "," <expression> "," <expression> ")" # ActFuncIif
 					| F_LOW <expression> ")"						# ActFuncLow
-					| F_POS <string expr> "," <string expr> ")"
-					| F_POSCI <string expr> "," <string expr> ")"
-					| F_VALUE <string expr> ")"	
+					| F_POS <string expr> "," <string expr> ")"		# ActFuncPos
+					| F_VALUE <string expr> ")"						# ActFuncValue
 					| K_TRUE										# ActExprTrue
 					| K_FALSE										# ActExprFalse
 					| "(" <expression> ")"							# ActExprBracket
 					| SymbolDef										# ActValueSymbol
-					| LocalAddress
-					| MacroPlaceholder
+					| LocalAddress									# ActLocalAddress
+					| MacroPlaceholder								# ActMacroPlaceholder
 					;
 
 <string expr>		: <string expr> "+" <string result>				# ActStrCat
@@ -346,13 +344,13 @@ LineComment2      = "//" {CommentChar}* ignore;
 					| F_BUILD										# ActStrBuild
 					| F_CHR <expression> ")"						# ActStrChr
 					| F_DATE										# ActStrDate
-					| F_HEX <expression> ")"
-					| F_HEX <expression> "," <expression> ")"
-					| F_LEFT <string expr> "," <expression> ")"
+					| F_HEX <expression> ")"						# ActStrHex1
+					| F_HEX <expression> "," <expression> ")"		# ActStrHex2
+					| F_LEFT <string expr> "," <expression> ")"		# ActStrLeft
 					| F_LOWER <string expr> ")"						# ActStrLower
-					| F_MID <string expr> "," <expression> "," <expression> ")"
-					| F_RIGHT <string expr> "," <expression> ")"
-					| F_STRING <expression> ")"
+					| F_MID <string expr> "," <expression> "," <expression> ")"	# ActStrMid
+					| F_RIGHT <string expr> "," <expression> ")"	# ActStrRight
+					| F_STRING <expression> ")"						# ActStrString
 					| F_TIME										# ActStrTime
 					| F_UPPER <string expr> ")"						# ActStrUpper
 					;  

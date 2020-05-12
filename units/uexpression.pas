@@ -10,10 +10,14 @@ uses
 // Forward declarations
 
 function StripQuotes(const _s: string): string;
+function StripQuotesAndEscaped(const _s: string): string;
 function VariableFromHexLiteral(const _s: string): string;
 function VariableFromOctLiteral(const _s: string): string;
 
 implementation
+
+uses
+  strutils;
 
 
 function StripQuotes(const _s: string): string;
@@ -25,6 +29,16 @@ begin
      (_s[Length(_s)] <> Chr(34)) then
     raise Exception.Create('Trying to strip quotes which are not present ' + _s);
   Result := Copy(_s,2,Length(_s)-2);
+end;
+
+function StripQuotesAndEscaped(const _s: string): string;
+begin
+  Result := StripQuotes(_s);
+  Result := StringReplace(Result,'\"','"',[rfReplaceAll]);
+  Result := StringReplace(Result,'\\','\',[rfReplaceAll]);
+  Result := StringReplace(Result,'\t',#9, [rfReplaceAll]);
+  Result := StringReplace(Result,'\n',#10,[rfReplaceAll]);
+  Result := StringReplace(Result,'\r',#13,[rfReplaceAll]);
 end;
 
 function VariableFromHexLiteral(const _s: string): string;

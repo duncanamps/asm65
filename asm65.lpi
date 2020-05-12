@@ -49,6 +49,13 @@
             </Debugging>
             <LinkSmart Value="True"/>
           </Linking>
+          <Other>
+            <CustomOptions Value="-dLCG8"/>
+            <OtherDefines Count="2">
+              <Define0 Value="PROFILE"/>
+              <Define1 Value="LCG8"/>
+            </OtherDefines>
+          </Other>
         </CompilerOptions>
       </Item2>
       <Item3 Name="macOS_Debug">

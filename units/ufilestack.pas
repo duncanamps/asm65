@@ -105,8 +105,7 @@ end;
 
 procedure TFileStack.Monitor(LogType: TLCGLogType; const Message: string);
 begin
-  if Assigned(FOnMonitor) and (LogType <= FParser.LogLevel) then
-    FOnMonitor(FParser,LogType,Message);
+  FParser.Monitor(LogType,Message);
 end;
 
 procedure TFileStack.Pop;

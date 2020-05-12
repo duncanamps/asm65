@@ -41,14 +41,16 @@ type
       function  CalcHash(_name: string): integer;
       procedure CheckHashSize;
       procedure ClearHash;
-      procedure SetUsed(_index: integer);
     public
       constructor Create;
       destructor Destroy; override;
+      function  Define(_pass: integer; const _name: string): string;
       function  Define(_pass: integer; const _name: string; const _variable: string): string;
       procedure Dump(_sl: TStringList);
       function  IndexOf(_key: string): integer;
       function  Exists(_name: string): boolean;
+      procedure SetUsed(_index: integer);
+      procedure SetUsed(const _name: string);
       procedure SortByAddr;
       procedure SortByName;
       function  Variable(_pass: integer; _name: string; _default: UINT16): string;
@@ -77,10 +79,17 @@ begin
 end;
 
 function AddrCompareFunc(const se1, se2: TSymbolEntry): integer;
+var v1,v2: integer;
 begin
-  if se1.SymValue = se2.SymValue then
+  v1 := se1.SymValue;
+  v2 := se2.SymValue;
+  if not se1.SymHasValue then
+    v1 := -1;
+  if not se2.SymHasValue then
+    v2 := -1;
+  if v1 = v2 then
     Result := NameCompareFunc(se1,se2)
-  else if se1.SymValue > se2.SymValue then
+  else if v1 > v2 then
     Result := 1
   else
     Result := -1;
@@ -158,8 +167,42 @@ begin
     FHashTable[i] := -1;
 end;
 
+function TSymbolTable.Define(_pass: integer; const _name: string): string;
+var entry: TSymbolEntry;
+    index: integer;
+begin
+  Result := '';
+  case _pass of
+    1:  begin
+          if Exists(_name) then
+            Result := 'Symbol ' + _name + ' already exists'
+          else
+            begin
+              entry.SymName     := UpperCase(_name);
+              entry.SymPass     := _pass;
+              entry.SymHasValue := False;
+              entry.SymUsed     := False;
+              AddHash(_name,Add(entry));
+              CheckHashSize;
+            end;
+        end;
+    2:  begin
+          if Exists(_name) then
+            begin
+              index := IndexOf(_name);
+              entry := Items[index];
+              entry.SymPass := _pass;
+              Items[index] := entry;
+            end
+          else
+            Result := 'Symbol ' + _name + ' defined in pass 2 but not pass 1';
+        end;
+  end; // Case
+end;
+
 function TSymbolTable.Define(_pass: integer; const _name: string; const _variable: string): string;
 var entry: TSymbolEntry;
+    index: integer;
 begin
   Result := '';
   case _pass of
@@ -177,7 +220,19 @@ begin
               CheckHashSize;
             end;
         end;
-  end;
+    2:  begin
+          if Exists(_name) then
+            begin
+              index := IndexOf(_name);
+              entry := Items[index];
+              entry.SymPass := _pass;
+              entry.SymValue    := StrToInt(_variable);
+              Items[index] := entry;
+            end
+          else
+            Result := 'Symbol ' + _name + ' defined in pass 2 but not pass 1';
+        end;
+  end; // Case
 end;
 
 procedure TSymbolTable.Dump(_sl: TStringList);
@@ -191,7 +246,10 @@ begin
       marker := ' ';
       if not Items[i].SymUsed then
         marker := '*';
-      _sl.Add(Format('%4.4X %5d %s %s',[Items[i].SymValue,Items[i].SymValue,marker,Items[i].SymName]));
+      if Items[i].SymHasValue then
+        _sl.Add(Format('%4.4X %5d %s %s',[Items[i].SymValue,Items[i].SymValue,marker,Items[i].SymName]))
+      else
+        _sl.Add(Format('           %s %s',[marker,Items[i].SymName]));
     end;
 end;
 
@@ -234,6 +292,14 @@ begin
   Items[_index] := rec;
 end;
 
+procedure TSymbolTable.SetUsed(const _name: string);
+begin
+  if IndexOf(_name) >= 0 then
+    SetUsed(IndexOf(_name))
+  else
+    raise Exception.Create(Format('Attempt to set symbol %s as used when it does not exist',[_name]));
+end;
+
 procedure TSymbolTable.SortByAddr;
 begin
   Sort(@AddrCompareFunc);
@@ -249,6 +315,8 @@ var i: integer;
 begin
   _name := UpperCase(_name);
   i := IndexOf(_name);
+  if (i >= 0) and (not Items[i].SymHasValue) then
+    raise Exception.Create(Format('Attempt to use the value of a symbol %s with no defined value',[_name]));
   if i >= 0 then
     SetUsed(i);
   case _pass of

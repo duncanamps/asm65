@@ -46,6 +46,7 @@ type
       function  ActCopy1(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDecLiteral(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDB(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActDirDefine(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDefineExpr(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDS(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDSZ(_parser: TLCGParser): TLCGParserStackEntry;
@@ -77,8 +78,12 @@ type
       function  ActExprSub(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActExprTrue(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActExprXor(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActFuncAsc(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActFuncHigh(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActFuncIif(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActFuncLow(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActFuncPos(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActFuncValue(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActHexLiteral(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActIgnore(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActInstruction(_parser: TLCGParser): TLCGParserStackEntry;
@@ -98,9 +103,16 @@ type
       function  ActSetOpInd(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActStrBuild(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActStrCat(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActStrChr(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActStrDate(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActStrHex1(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActStrHex2(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActStringConstant(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActStrLeft(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActStrLower(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActStrMid(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActStrRight(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActStrString(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActStrTime(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActStrUpper(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActValueOrg(_parser: TLCGParser): TLCGParserStackEntry;
@@ -337,15 +349,31 @@ begin
   Result.Buf := '';
 end;
 
+function TAssembler.ActDirDefine(_parser: TLCGParser): TLCGParserStackEntry;
+var symbolname: string;
+    message:    string;
+begin
+  if not FIfStack.Allowed then
+    Exit;
+  symbolname := _parser.ParserStack[_parser.ParserSP-1].Buf;
+  message := FSymbols.Define(FPass,symbolname);
+  if message <> '' then
+    Monitor(ltError,message);
+  Result.Buf := '';
+end;
+
 function TAssembler.ActDirDefineExpr(_parser: TLCGParser): TLCGParserStackEntry;
 var symbolname: string;
     expression: string;
+    message:    string;
 begin
   if not FIfStack.Allowed then
     Exit;
   symbolname := _parser.ParserStack[_parser.ParserSP-3].Buf;
   expression := _parser.ParserStack[_parser.ParserSP-1].Buf;
-  FSymbols.Define(FPass,symbolname,expression);
+  message := FSymbols.Define(FPass,symbolname,expression);
+  if message <> '' then
+    Monitor(ltError,message);
   Result.Buf := '';
 end;
 
@@ -411,6 +439,7 @@ end;
 function TAssembler.ActDirIfdef(_parser: TLCGParser): TLCGParserStackEntry;
 var succeeded: boolean;
 begin
+  FSymbols.SetUsed(_parser.ParserStack[_parser.ParserSP-1].Buf);
   succeeded := FSymbols.Exists(_parser.ParserStack[_parser.ParserSP-1].Buf);
   FIfStack.Push(succeeded);
   Result.Buf := '';
@@ -419,6 +448,7 @@ end;
 function TAssembler.ActDirIfndef(_parser: TLCGParser): TLCGParserStackEntry;
 var succeeded: boolean;
 begin
+  FSymbols.SetUsed(_parser.ParserStack[_parser.ParserSP-1].Buf);
   succeeded := not FSymbols.Exists(_parser.ParserStack[_parser.ParserSP-1].Buf);
   FIfStack.Push(succeeded);
   Result.Buf := '';
@@ -575,14 +605,50 @@ begin
                          StrToInt(_parser.ParserStack[_parser.ParserSP-1].Buf));
 end;
 
+function TAssembler.ActFuncAsc(_parser: TLCGParser): TLCGParserStackEntry;
+var s: string;
+begin
+  s := _parser.ParserStack[_parser.ParserSP-2].Buf;
+  if Length(s) < 1 then
+    Monitor(ltError,'No argument provided to ASC() function');
+  Result.Buf := IntToStr(Ord(s[1]));
+end;
+
 function TAssembler.ActFuncHigh(_parser: TLCGParser): TLCGParserStackEntry;
 begin
   Result.Buf := IntToStr(StrToInt(_parser.ParserStack[_parser.ParserSP-2].Buf) shr 8);
 end;
 
+function TAssembler.ActFuncIif(_parser: TLCGParser): TLCGParserStackEntry;
+var expr:     integer;
+    trueval:  integer;
+    falseval: integer;
+    resval:   integer;
+begin
+  expr     := StrToInt(_parser.ParserStack[_parser.ParserSP-6].Buf);
+  trueval  := StrToInt(_parser.ParserStack[_parser.ParserSP-4].Buf);
+  falseval := StrToInt(_parser.ParserStack[_parser.ParserSP-2].Buf);
+  if expr <> 0 then
+    resval := trueval
+  else
+    resval := falseval;
+  Result.Buf := IntToStr(resval);
+end;
+
 function TAssembler.ActFuncLow(_parser: TLCGParser): TLCGParserStackEntry;
 begin
   Result.Buf := IntToStr(StrToInt(_parser.ParserStack[_parser.ParserSP-2].Buf) and $00FF);
+end;
+
+function TAssembler.ActFuncPos(_parser: TLCGParser): TLCGParserStackEntry;
+begin
+  Result.Buf := IntToStr(Pos(_parser.ParserStack[_parser.ParserSP-4].Buf,
+                             _parser.ParserStack[_parser.ParserSP-2].Buf));
+end;
+
+function TAssembler.ActFuncValue(_parser: TLCGParser): TLCGParserStackEntry;
+begin
+  Result.Buf := IntToStr(StrToInt(_parser.ParserStack[_parser.ParserSP-2].Buf));
 end;
 
 function TAssembler.ActHexLiteral(_parser: TLCGParser): TLCGParserStackEntry;
@@ -771,19 +837,76 @@ begin
                 _parser.ParserStack[_parser.ParserSP-1].Buf;
 end;
 
+function TAssembler.ActStrChr(_parser: TLCGParser): TLCGParserStackEntry;
+begin
+  Result.Buf := Chr(StrToInt(_parser.ParserStack[_parser.ParserSP-2].Buf));
+end;
+
 function TAssembler.ActStrDate(_parser: TLCGParser): TLCGParserStackEntry;
 begin
   Result.Buf := FormatDateTime('yyyy-mm-dd',FAssemblyStart);
 end;
 
+function TAssembler.ActStrHex1(_parser: TLCGParser): TLCGParserStackEntry;
+begin
+  Result.Buf := Format('%X',[StrToInt(_parser.ParserStack[_parser.ParserSP-2].Buf)]);
+end;
+
+function TAssembler.ActStrHex2(_parser: TLCGParser): TLCGParserStackEntry;
+var fmt: string;
+    digits: integer;
+begin
+  digits := StrToInt(_parser.ParserStack[_parser.ParserSP-2].Buf);
+  if (digits < 1) or (digits > 4) then
+      Monitor(ltError,'Range for number of hex digits is 1 to 4');
+  fmt := Format('%%%d.%dX',[digits,digits]);
+  Result.Buf := Format(fmt,[StrToInt(_parser.ParserStack[_parser.ParserSP-4].Buf)]);
+end;
+
 function TAssembler.ActStringConstant(_parser: TLCGParser): TLCGParserStackEntry;
 begin
-  Result.Buf := StripQuotes(_parser.ParserStack[_parser.ParserSP-1].Buf);
+  Result.Buf := StripQuotesAndEscaped(_parser.ParserStack[_parser.ParserSP-1].Buf);
+end;
+
+function TAssembler.ActStrLeft(_parser: TLCGParser): TLCGParserStackEntry;
+var len: integer;
+begin
+  len := StrToInt(_parser.ParserStack[_parser.ParserSP-2].Buf);
+  if len < 0 then
+    Monitor(ltError,'Length for LEFT() cannot use a negative number');
+  Result.Buf := LeftStr(_parser.ParserStack[_parser.ParserSP-4].Buf,len);
 end;
 
 function TAssembler.ActStrLower(_parser: TLCGParser): TLCGParserStackEntry;
 begin
-  Result.Buf := LowerCase(_parser.ParserStack[_parser.ParserSP-1].Buf);
+  Result.Buf := LowerCase(_parser.ParserStack[_parser.ParserSP-2].Buf);
+end;
+
+function TAssembler.ActStrMid(_parser: TLCGParser): TLCGParserStackEntry;
+var len: integer;
+    start: integer;
+begin
+  start := StrToInt(_parser.ParserStack[_parser.ParserSP-4].Buf);
+  len   := StrToInt(_parser.ParserStack[_parser.ParserSP-2].Buf);
+  if start < 0 then
+    Monitor(ltError,'Start for MID() cannot use a negative number');
+  if len < 0 then
+    Monitor(ltError,'Length for MID() cannot use a negative number');
+  Result.Buf := Copy(_parser.ParserStack[_parser.ParserSP-6].Buf,start,len);
+end;
+
+function TAssembler.ActStrRight(_parser: TLCGParser): TLCGParserStackEntry;
+var len: integer;
+begin
+  len := StrToInt(_parser.ParserStack[_parser.ParserSP-2].Buf);
+  if len < 0 then
+    Monitor(ltError,'Length for RIGHT() cannot use a negative number');
+  Result.Buf := RightStr(_parser.ParserStack[_parser.ParserSP-4].Buf,len);
+end;
+
+function TAssembler.ActStrString(_parser: TLCGParser): TLCGParserStackEntry;
+begin
+  Result.Buf := IntToStr(StrToInt(_parser.ParserStack[_parser.ParserSP-2].Buf));
 end;
 
 function TAssembler.ActStrTime(_parser: TLCGParser): TLCGParserStackEntry;
@@ -793,7 +916,7 @@ end;
 
 function TAssembler.ActStrUpper(_parser: TLCGParser): TLCGParserStackEntry;
 begin
-  Result.Buf := UpperCase(_parser.ParserStack[_parser.ParserSP-1].Buf);
+  Result.Buf := UpperCase(_parser.ParserStack[_parser.ParserSP-2].Buf);
 end;
 
 function TAssembler.ActValueOrg(_parser: TLCGParser): TLCGParserStackEntry;
@@ -1057,6 +1180,7 @@ begin
   RegisterProc('ActCompNE',         @ActCompNE);
   RegisterProc('ActDecLiteral',     @ActDecLiteral);
   RegisterProc('ActDirDB',          @ActDirDB);
+  RegisterProc('ActDirDefine',      @ActDirDefine);
   RegisterProc('ActDirDefineExpr',  @ActDirDefineExpr);
   RegisterProc('ActDirDS',          @ActDirDS);
   RegisterProc('ActDirDSZ',         @ActDirDSZ);
@@ -1088,8 +1212,12 @@ begin
   RegisterProc('ActExprSub',        @ActExprSub);
   RegisterProc('ActExprTrue',       @ActExprTrue);
   RegisterProc('ActExprXor',        @ActExprXor);
+  RegisterProc('ActFuncAsc',        @ActFuncAsc);
   RegisterProc('ActFuncHigh',       @ActFuncHigh);
+  RegisterProc('ActFuncIif',        @ActFuncIif);
   RegisterProc('ActFuncLow',        @ActFuncLow);
+  RegisterProc('ActFuncPos',        @ActFuncPos);
+  RegisterProc('ActFuncValue',      @ActFuncValue);
   RegisterProc('ActHexLiteral',     @ActHexLiteral);
   RegisterProc('ActIgnore',         @ActIgnore);
   RegisterProc('ActInstruction',    @ActInstruction);
@@ -1109,9 +1237,16 @@ begin
   RegisterProc('ActSetOpInd',       @ActSetOpInd);
   RegisterProc('ActStrBuild',       @ActStrBuild);
   RegisterProc('ActStrCat',         @ActStrCat);
+  RegisterProc('ActStrChr',         @ActStrChr);
   RegisterProc('ActStrDate',        @ActStrDate);
+  RegisterProc('ActStrHex1',        @ActStrHex1);
+  RegisterProc('ActStrHex2',        @ActStrHex2);
   RegisterProc('ActStringConstant', @ActStringConstant);
+  RegisterProc('ActStrLeft',        @ActStrLeft);
   RegisterProc('ActStrLower',       @ActStrLower);
+  RegisterProc('ActStrMid',         @ActStrMid);
+  RegisterProc('ActStrRight',       @ActStrRight);
+  RegisterProc('ActStrString',      @ActStrString);
   RegisterProc('ActStrTime',        @ActStrTime);
   RegisterProc('ActStrUpper',       @ActStrUpper);
   RegisterProc('ActValueOrg',       @ActValueOrg);
