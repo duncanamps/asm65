@@ -1,7 +1,7 @@
+{$WARN 5024 off : Parameter "$1" not used}
 unit uassembler;
 
 {$mode objfpc}{$H+}
-{$WARN 5024 off : Parameter "$1" not used}
 
 interface
 
@@ -59,6 +59,7 @@ type
       function  ActDirDefmacro(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDS(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDSZ(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActDirDW(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirElse(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirEndif(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirEndm(_parser: TLCGParser): TLCGParserStackEntry;
@@ -134,6 +135,7 @@ type
       function  ActValueSymbol(_parser: TLCGParser): TLCGParserStackEntry;
       procedure FilesClose;
       procedure FilesOpen;
+      procedure InitLine;
       procedure InitPass;
       procedure InitStart;
       procedure OutputListingLine(const _asmline: string);
@@ -347,6 +349,7 @@ var bval: integer;
     bcount: integer;
     i:      integer;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   bval   := StrToInt(_parser.ParserStack[_parser.ParserSP-3].Buf);
@@ -357,7 +360,6 @@ begin
   SetLength(FOutputArr,bcount);
   for i := 0 to bcount-1 do
     FOutputArr[i] := bval and $00FF;
-  Result.Buf := '';
 end;
 
 function TAssembler.ActDirDB(_parser: TLCGParser): TLCGParserStackEntry;
@@ -391,13 +393,13 @@ function TAssembler.ActDirDefine(_parser: TLCGParser): TLCGParserStackEntry;
 var symbolname: string;
     message:    string;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   symbolname := _parser.ParserStack[_parser.ParserSP-1].Buf;
   message := FSymbols.Define(FPass,symbolname);
   if message <> '' then
     Monitor(ltError,message);
-  Result.Buf := '';
 end;
 
 function TAssembler.ActDirDefineExpr(_parser: TLCGParser): TLCGParserStackEntry;
@@ -405,6 +407,7 @@ var symbolname: string;
     expression: string;
     message:    string;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   symbolname := _parser.ParserStack[_parser.ParserSP-3].Buf;
@@ -412,11 +415,11 @@ begin
   message := FSymbols.Define(FPass,symbolname,expression);
   if message <> '' then
     Monitor(ltError,message);
-  Result.Buf := '';
 end;
 
 function TAssembler.ActDirDefmacro(_parser: TLCGParser): TLCGParserStackEntry;
 begin
+  Result.Buf := '';
   if not FIfStack.Allowed then
     exit;
   if FDefiningMacro then
@@ -427,13 +430,13 @@ begin
     Monitor(ltError,'Macro %s is already defined',[FMacroName]);
   FMacroCapture := TStringList.Create;
   Monitor(ltWarAndPeace,'Defining macro %s',[FMacroName]);
-  Result.Buf := '';
 end;
 
 function TAssembler.ActDirDS(_parser: TLCGParser): TLCGParserStackEntry;
 var i:   integer;
     s:   string;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   s := _parser.ParserStack[_parser.ParserSP-1].Buf;
@@ -442,13 +445,13 @@ begin
   for i := 1 to Length(s) do
     FOutputArr[i-1] := Ord(s[i]);
   FOutput.Write(FOutputArr,FOrg,FBytesFromLine);
-  Result.Buf := '';
 end;
 
 function TAssembler.ActDirDSZ(_parser: TLCGParser): TLCGParserStackEntry;
 var i:   integer;
     s:   string;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   s := _parser.ParserStack[_parser.ParserSP-1].Buf;
@@ -458,6 +461,33 @@ begin
     FOutputArr[i-1] := Ord(s[i]);
   FOutputArr[FBytesFromLine-1] := 0;
   FOutput.Write(FOutputArr,FOrg,FBytesFromLine);
+end;
+
+function TAssembler.ActDirDW(_parser: TLCGParser): TLCGParserStackEntry;
+var sl: TStringList;
+    i:   integer;
+    bval: integer;
+begin
+  if not ProcessingAllowed then
+    Exit;
+  sl := TStringList.Create;
+  try
+    sl.Delimiter := ',';
+    sl.DelimitedText := _parser.ParserStack[_parser.ParserSP-1].Buf;
+    FBytesFromLine := sl.Count*2;
+    SetLength(FOutputArr,FBytesFromLine);
+    for i := 0 to sl.Count-1 do
+      begin
+        bval := StrToInt(sl[i]);
+        if (bval > 65535) or (bval < -32768) then
+          Monitor(ltError,'Word value %d not in range',[bval]);
+        FOutputArr[i*2+0] := bval and $00FF;
+        FOutputArr[i*2+1] := (bval shr 8) and $00FF;
+      end;
+    FOutput.Write(FOutputArr,FOrg,FBytesFromLine);
+  finally
+    sl.Free;
+  end;
   Result.Buf := '';
 end;
 
@@ -475,6 +505,7 @@ end;
 
 function TAssembler.ActDirEndm(_parser: TLCGParser): TLCGParserStackEntry;
 begin
+  Result.Buf := '';
   if not FIfStack.Allowed then
     exit;
   FMacroList.Add(FMacroName,FMacroCapture);
@@ -482,15 +513,14 @@ begin
   FMacroName := '';
   FMacroCapture := nil;
   Monitor(ltWarAndPeace,'End of defining macro %s',[FMacroName]);
-  Result.Buf := '';
 end;
 
 function TAssembler.ActDirError(_parser: TLCGParser): TLCGParserStackEntry;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   Monitor(ltError,_parser.ParserStack[_parser.ParserSP-1].Buf);
-  Result.Buf := '';
 end;
 
 function TAssembler.ActDirIf(_parser: TLCGParser): TLCGParserStackEntry;
@@ -524,6 +554,7 @@ var parentfile: string;
     myfile:     string;
     saveddir:   string;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   saveddir := GetCurrentDir;
@@ -533,66 +564,65 @@ begin
   myfile := ExpandFilename(myfile);
   SetCurrentDir(saveddir);
   FIncludeNext := myfile;
-  Result.Buf := '';
 end;
 
 function TAssembler.ActDirList(_parser: TLCGParser): TLCGParserStackEntry;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   FList := True;
   FListNext := True;
-  Result.Buf := '';
 end;
 
 function TAssembler.ActDirMacro(_parser: TLCGParser): TLCGParserStackEntry;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   FProcessMacro := UpperCase(_parser.ParserStack[_parser.ParserSP-2].Buf);
   FProcessParms := _parser.ParserStack[_parser.ParserSP-1].Buf;
-  Result.Buf := '';
 end;
 
 function TAssembler.ActDirMacroNoexpr(_parser: TLCGParser): TLCGParserStackEntry;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   FProcessMacro := UpperCase(_parser.ParserStack[_parser.ParserSP-1].Buf);
   FProcessParms := '';
-  Result.Buf := '';
 end;
 
 function TAssembler.ActDirMessage(_parser: TLCGParser): TLCGParserStackEntry;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   Monitor(ltInfo,_parser.ParserStack[_parser.ParserSP-1].Buf);
-  Result.Buf := '';
 end;
 
 function TAssembler.ActDirNoList(_parser: TLCGParser): TLCGParserStackEntry;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   FListNext := False;
-  Result.Buf := '';
 end;
 
 function TAssembler.ActDirOrg(_parser: TLCGParser): TLCGParserStackEntry;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   FOrg := StrToInt(_parser.ParserStack[_parser.ParserSP-1].Buf);
-  Result.Buf := '';
 end;
 
 function TAssembler.ActDirWarning(_parser: TLCGParser): TLCGParserStackEntry;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   Monitor(ltWarning,_parser.ParserStack[_parser.ParserSP-1].Buf);
-  Result.Buf := '';
 end;
 
 function TAssembler.ActExprAdd(_parser: TLCGParser): TLCGParserStackEntry;
@@ -751,6 +781,7 @@ var opstr: string;
     found: boolean;
     instr: byte;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   // We have the operand type and address in FAddrMode / FAddr, find opcode
@@ -796,31 +827,36 @@ begin
       if FBytesFromLine > 2 then FOutputArr[2] := FAddr shr 8;
       FOutput.Write(FOutputArr,FOrg,FBytesFromLine);
     end;
-  Result.Buf := '';
 end;
 
 function TAssembler.ActLabel(_parser: TLCGParser): TLCGParserStackEntry;
 var symbolname: string;
     expression: string;
+    msg:        string;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   symbolname := _parser.ParserStack[_parser.ParserSP-2].Buf;
   expression := IntToStr(FOrg);
-  FSymbols.Define(FPass,symbolname,expression);
-  Result.Buf := '';
+  msg := FSymbols.Define(FPass,symbolname,expression);
+  if msg <> '' then
+    Monitor(ltError,msg);
 end;
 
 function TAssembler.ActLabelLocal(_parser: TLCGParser): TLCGParserStackEntry;
 var symbolname: string;
     expression: string;
+    msg:        string;
 begin
+  Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
   symbolname := FLocalPrefix + _parser.ParserStack[_parser.ParserSP-2].Buf;
   expression := IntToStr(FOrg);
-  FSymbols.Define(FPass,symbolname,expression);
-  Result.Buf := '';
+  msg := FSymbols.Define(FPass,symbolname,expression);
+  if msg <> '' then
+    Monitor(ltError,msg);
 end;
 
 function TAssembler.ActLogAnd(_parser: TLCGParser): TLCGParserStackEntry;
@@ -1091,10 +1127,18 @@ procedure TAssembler.FilesOpen;
 begin
   try
     Monitor(ltDebug,'Opening %s',[FilenameLog]);
-    FStreamLog := TFileStream.Create(FilenameLog,fmCreate,fmShareDenyWrite);
+    if FilenameLog <> '' then
+      FStreamLog := TFileStream.Create(FilenameLog,fmCreate,fmShareDenyWrite);
   except
     Monitor(ltError,'Unable to create log file %s',[FilenameLog]);
   end;
+end;
+
+procedure TAssembler.InitLine;
+begin
+  FAddrMode := ADM_IMPL;
+  FOpCode := OPC_NOP;
+  FBytesFromLine := 0;
 end;
 
 procedure TAssembler.InitPass;
@@ -1180,7 +1224,7 @@ begin
   if (FPass = 1) {or (FFileStack.Count > 1)} or (not FList) { or (not ProcessingAllowed)} then
     Exit;
   if FBytesFromLine = 0 then
-    FListing.Add(StringOfChar(' ',HEX_WIDTH) + ExpandTabs(_asmline,FTabSize))
+    FListing.Add(StringOfChar(' ',HEX_WIDTH) + _asmline)
   else
     begin
       byteindex := 0;
@@ -1193,7 +1237,7 @@ begin
       for i := 0 to bcount-1 do
         s := s + Format(' %2.2X',[FOutputArr[i+byteindex]]);
       s := PadRight(s,HEX_WIDTH);
-      s := s + ExpandTabs(_asmline,FTabSize);
+      s := s + _asmline;
       FListing.Add(s);
       byteindex := byteindex + bcount;
       // Do any overspill lines if required
@@ -1226,9 +1270,11 @@ end;
 procedure TAssembler.ProcessFileInner;
 var asmline: string;
     incl:    string;
+    anew:    integer;
 begin
   while not FFileStack.EOF do
     begin
+      InitLine;
       asmline := FFileStack.GetLine;
       if LogLevel >= ltDebug then
         Monitor(ltDebug,'> ' + asmline);
@@ -1243,7 +1289,11 @@ begin
           // Add to listing
           OutputListingLine(asmline);
           // Bump org
-          FOrg := FOrg + FBytesFromLine;
+          anew := FOrg;
+          anew := anew + FBytesFromLine;
+          FOrg := anew and $FFFF;
+          if (anew > $FFFF) and (FPass = 2) then
+            Monitor(ltWarning,'ORG has wrapped back round to zero');
           FBytesTotal := FBytesTotal + FBytesFromLine;
           // Check to see if listing flag has changed
           FList := FListNext;
@@ -1299,9 +1349,6 @@ end;
 procedure TAssembler.ProcessLine(const _line: string);
 var strm: TStringStream;
 begin
-  FAddrMode := ADM_IMPL;
-  FOpCode := OPC_NOP;
-  FBytesFromLine := 0;
   strm := TStringStream.Create(_line);
   try
     Parse(strm);
@@ -1312,6 +1359,7 @@ end;
 
 function TAssembler.Reduce(Parser: TLCGParser; RuleIndex: UINT32): TLCGParserStackEntry;
 begin
+  Result.Buf := '';
   if Assigned(FProcArray[RuleIndex]) then
     Result := FProcArray[RuleIndex](Parser)
   else
@@ -1352,6 +1400,7 @@ begin
   RegisterProc('ActDirDefmacro',    @ActDirDefmacro, _procs);
   RegisterProc('ActDirDS',          @ActDirDS, _procs);
   RegisterProc('ActDirDSZ',         @ActDirDSZ, _procs);
+  RegisterProc('ActDirDW',          @ActDirDW, _procs);
   RegisterProc('ActDirElse',        @ActDirElse, _procs);
   RegisterProc('ActDirEndif',       @ActDirEndif, _procs);
   RegisterProc('ActDirEndm',        @ActDirEndm, _procs);
@@ -1430,10 +1479,10 @@ end;
 procedure TAssembler.SetFilenameSrc(const _fn: string);
 begin
   FFilenameSrc := _fn;
-  if FilenameHex  = '' then FilenameHex  := ChangeFileExt(_fn,'.hex');
-  if FilenameLst  = '' then FilenameLst  := ChangeFileExt(_fn,'.lst');
-  if FilenameLog  = '' then FilenameLog  := ChangeFileExt(_fn,'.log');
-  if FilenameMap  = '' then FilenameMap  := ChangeFileExt(_fn,'.map');
+//  if FilenameHex  = '' then FilenameHex  := ChangeFileExt(_fn,'.hex');
+//  if FilenameLst  = '' then FilenameLst  := ChangeFileExt(_fn,'.lst');
+//  if FilenameLog  = '' then FilenameLog  := ChangeFileExt(_fn,'.log');
+//  if FilenameMap  = '' then FilenameMap  := ChangeFileExt(_fn,'.map');
   if FilenameObj  = '' then FilenameObj  := ChangeFileExt(_fn,'.obj');
 end;
 

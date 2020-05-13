@@ -44,7 +44,7 @@ type
 implementation
 
 uses
-  uutility, uassembler;
+  uutility, uassembler, uasmglobals;
 
 { TFileStackEntry }
 
@@ -92,7 +92,7 @@ var rec: TFileStackEntry;
 begin
   if EOF then
     Monitor(ltInternal,'Attempt to read past end of file on ' + Filename);
-  Result := ExpandTabs(Top.List[InputLine],TAssembler(FParser).TabSize);
+  Result := Top.List[InputLine];
   rec := Top;
   Inc(rec.InputLine);
   Items[Count-1] := rec;
@@ -123,14 +123,20 @@ end;
 
 procedure TFileStack.Push(filename: string);
 var rec: TFileStackEntry;
+    i:   integer;
 begin
-  filename := ExpandFilename(filename);
+  {%H-}filename := ExpandFilename(filename);
   if Exists(filename) then
     Monitor(ltError,'Circular file reference in file ' + filename);
   Monitor(ltDebug,'Opening file ' + filename);
   rec.Filename  := filename;
   rec.List := TStringList.Create;
   rec.List.LoadFromFile(filename);
+  for i := 0 to rec.List.Count-1 do
+    if Length(rec.List[i]) > MAX_LINE_LENGTH then
+      FParser.Monitor(ltError,'Input line exceeds maximum line length of %s',[MAX_LINE_LENGTH])
+    else
+      rec.List[i] := ExpandTabs(rec.List[i],TAssembler(FParser).TabSize);
   rec.InputLine := 0;
   Add(rec);
 end;
@@ -139,7 +145,7 @@ procedure TFileStack.PushMacro(macroname: string; sl: TStringList; parms: TStrin
 var rec: TFileStackEntry;
     i,j: integer;
 begin
-  macroname := UpperCase(macroname);
+  {%H-}macroname := UpperCase(macroname);
   rec.Filename := 'MACRO '+ macroname;
   if Exists(rec.Filename) then
     Monitor(ltError,'Circular macro reference in macro ' + macroname);

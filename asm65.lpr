@@ -34,7 +34,7 @@ type
   TAsm6502 = class(TCustomApplication)
   protected
     procedure DoRun; override;
-    procedure ProcessFilename(var filename: string; shortopt: char; longopt: string; defaultext: string);
+    procedure ProcessFilename(basename: string; var filename: string; shortopt: char; longopt: string; defaultext: string);
     procedure WriteHelp; virtual;
     procedure WriteTitle;
     procedure WriteVersion;
@@ -56,6 +56,7 @@ var
   verblevel:  integer;
   nonoptions: TStringList;
   filename:   string;
+  basename:   string;  // Filename without .ext on the end
 begin
   WriteTitle;
 
@@ -67,34 +68,16 @@ begin
     Exit;
   end;
 
-  // Check filename is specified
-  nonoptions := TStringList.Create;
-  try
-    GetNonOptions(SHORT_OPTIONS,LONG_OPTIONS,nonoptions);
-    if nonoptions.Count < 1 then
-      begin
-        WriteLn('Filename not specified');
-        Terminate;
-        Exit;
-      end;
-    if nonoptions.Count > 1 then
-      begin
-        WriteLn('More than one filename specified');
-        Terminate;
-        Exit;
-      end;
-    filename := ExpandFilename(nonoptions[0]);
-  finally
-    nonoptions.Free;
-  end;
-
-  // parse parameters
+  // Help if needed...
   if HasOption('h', 'help') or (ParamCount < 1) then
     begin
       WriteHelp;
       Terminate;
       Exit;
     end;
+
+
+  // parse parameters
   if HasOption('t', 'tab') then
     begin
       taboption := GetOptionValue('t', 'tab');
@@ -139,6 +122,28 @@ begin
   else
     verblevel := 0;
 
+  // Check filename is specified
+
+  nonoptions := TStringList.Create;
+  try
+    GetNonOptions(SHORT_OPTIONS,LONG_OPTIONS,nonoptions);
+    if nonoptions.Count < 1 then
+      begin
+        WriteLn('Filename not specified');
+        Terminate;
+        Exit;
+      end;
+    if nonoptions.Count > 1 then
+      begin
+        WriteLn('More than one filename specified');
+        Terminate;
+        Exit;
+      end;
+    filename := ExpandFilename(nonoptions[0]);
+  finally
+    nonoptions.Free;
+  end;
+
   { add your program here }
 
 
@@ -156,11 +161,12 @@ begin
       2: asm65.LogLevel := ltWarAndPeace;
       3: asm65.LogLevel := ltDebug;
     end;
-    ProcessFilename(asm65.FilenameHex,'h','hex',     '.hex');
-    ProcessFilename(asm65.FilenameLst,'l','listing', '.lst');
-    ProcessFilename(asm65.FilenameLog,'e','errorlog','.log');
-    ProcessFilename(asm65.FilenameMap,'m','map',     '.map');
-    ProcessFilename(asm65.FilenameObj,'o','object',  '.obj');
+    basename := StringReplace(asm65.FilenameSrc,ExtractFileExt(asm65.FilenameSrc),'',[rfReplaceAll]);
+    ProcessFilename(basename,asm65.FilenameHex,'h','hex',     '.hex');
+    ProcessFilename(basename,asm65.FilenameLst,'l','listing', '.lst');
+    ProcessFilename(basename,asm65.FilenameLog,'e','errorlog','.log');
+    ProcessFilename(basename,asm65.FilenameMap,'m','map',     '.map');
+    ProcessFilename(basename,asm65.FilenameObj,'o','object',  '.obj');
     try
       asm65.Assemble;
     except
@@ -193,12 +199,16 @@ begin
   WriteLn(Message);
 end;
 
-procedure TAsm6502.ProcessFilename(var filename: string; shortopt: char; longopt: string; defaultext: string);
+procedure TAsm6502.ProcessFilename(basename: string; var filename: string; shortopt: char; longopt: string; defaultext: string);
 var newname: string;
 begin
   if HasOption(shortopt,longopt) then
     begin
       newname := GetOptionValue(shortopt,longopt);
+      if newname = '' then
+          newname := basename;
+      if ExtractFileName(newname) = newname then // No path specified
+        newname := ExtractFilePath(basename) + newname;
       if ExtractFileExt(newname) = '' then
         newname := newname + defaultext;
       filename := ExpandFilename(newname);

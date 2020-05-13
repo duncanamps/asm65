@@ -108,6 +108,7 @@ end;
 
 procedure TOutput.Write(const _array: TOutputSequence; _addr: UINT16; _len: integer);
 var i: integer;
+    anew: integer;
 begin
   for i := 1 to _len do
     if FUsed[_addr] then
@@ -116,7 +117,11 @@ begin
       begin
         FUsed[_addr] := True;
         FBytes[_addr] := _array[i-1];
-        Inc(_addr);
+        // Split out to a 32 bit value in case we are assembling right at
+        // the end of memory ($FFFF)
+        anew := _addr;
+        Inc(anew);
+        _addr := anew and $FFFF;
       end;
 end;
 

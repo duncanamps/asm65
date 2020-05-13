@@ -134,7 +134,7 @@ function TSymbolTable.CalcHash(_name: string): integer;
 var hashval: int64;
     i:       integer;
 begin
-  _name := UpperCase(_name);
+  {%H-}_name := UpperCase(_name);
   hashval := 0;
   for i := 1 to Length(_name) do
     begin
@@ -262,7 +262,7 @@ function TSymbolTable.IndexOf(_key: string): integer;
 var index: integer;
     done:  boolean;
 begin
-  _key := UpperCase(_key);
+  {%H-}_key := UpperCase(_key);
   Result := -1;
   index := CalcHash(_key);
   done := False;
@@ -313,7 +313,8 @@ end;
 function TSymbolTable.Variable(_pass: integer; _name: string; _default: UINT16): string;
 var i: integer;
 begin
-  _name := UpperCase(_name);
+  Result := '';
+  {%H-}_name := UpperCase(_name);
   i := IndexOf(_name);
   if (i >= 0) and (not Items[i].SymHasValue) then
     raise Exception.Create(Format('Attempt to use the value of a symbol %s with no defined value',[_name]));

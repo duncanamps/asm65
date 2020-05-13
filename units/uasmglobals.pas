@@ -23,6 +23,7 @@ const
   MAX_DIGITS_LINENUMBER             = 5;
   MAX_DIGITS_PAGENUMBER             = 4;
   MAX_HEX_BYTES_IN_LISTING          = 8;
+  MAX_LINE_LENGTH                   = 4096;
   MAX_NESTED_FILES                  = 16;
   MAX_SOURCE_BYTES_PER_LISTING_LINE = 4;
   TEMP_FILE_DIVIDER                 = '?END?';
@@ -161,7 +162,7 @@ const
 
 function BinToDecStr(_s: string): string;
 function BooleanToYN(_b: boolean): string;
-function ExpandTabs(_src: string; _tabsize: integer): string;
+// function ExpandTabs(_src: string; _tabsize: integer): string;
 function NCSPos(_a, _b: string): integer;
 function OctToDecStr(_s: string): string;
 procedure UnderlinedText(_sl: TStringList; _text: string; _blank_after: boolean = True; _underline_char: char = '-');
@@ -189,6 +190,7 @@ begin
     BooleanToYN := 'N';
 end;
 
+{
 function ExpandTabs(_src: string; _tabsize: integer): string;
 var i: integer;
 begin
@@ -202,7 +204,7 @@ begin
       result := result + _src[i];
   ExpandTabs := result;
 end;
-
+}
 function NCSPos(_a, _b: string): integer;
 begin
   NCSPos := Pos(UpperCase(_a),UpperCase(_b));
