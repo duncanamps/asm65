@@ -5,13 +5,34 @@ unit uutility;
 interface
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils, CustApp;
 
+procedure AugmentIncludes(s: string; list: TStringList);
+procedure CmdOptionToList(app: TCustomApplication; shortopt: char; longopt: string; list: TStringList; delim: boolean = False);
 function ExpandTabs(const _s: string; tabsize: integer): string;
 function IsPrime(_value: integer): boolean;
 function NextPrime(_value: integer): integer;
 
 implementation
+
+procedure AugmentIncludes(s: string; list: TStringList);
+begin
+  s := IncludeTrailingPathDelimiter(s);
+  if list.IndexOf(s) < 0 then
+    list.Insert(0,s);
+end;
+
+procedure CmdOptionToList(app: TCustomApplication; shortopt: char; longopt: string; list: TStringList; delim: boolean = False);
+var i: integer;
+begin
+  if app.HasOption(shortopt,longopt) then
+    begin
+      list.Delimiter := ';';
+      list.DelimitedText := app.GetOptionValue(shortopt,longopt);
+      if delim then for i := 0 to list.Count-1 do
+        list[i] := IncludeTrailingPathDelimiter(ExpandFilename(list[i]));
+    end;
+end;
 
 function ExpandTabs(const _s: string; tabsize: integer): string;
 var i: integer;

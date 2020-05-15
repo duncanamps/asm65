@@ -49,6 +49,7 @@ type
       procedure Dump(_sl: TStringList);
       function  IndexOf(_key: string): integer;
       function  Exists(_name: string): boolean;
+      function  ExistsInPass(_pass: integer; _name: string): boolean;
       procedure SetUsed(_index: integer);
       procedure SetUsed(const _name: string);
       procedure SortByAddr;
@@ -258,6 +259,11 @@ begin
   Result := IndexOf(_name) >= 0;
 end;
 
+function TSymbolTable.ExistsInPass(_pass: integer; _name: string): boolean;
+begin
+  Result := (IndexOf(_name) >= 0) and (Items[IndexOf(_name)].SymPass = _pass);
+end;
+
 function TSymbolTable.IndexOf(_key: string): integer;
 var index: integer;
     done:  boolean;
@@ -295,9 +301,11 @@ end;
 procedure TSymbolTable.SetUsed(const _name: string);
 begin
   if IndexOf(_name) >= 0 then
-    SetUsed(IndexOf(_name))
+    SetUsed(IndexOf(_name));
+  {
   else
     raise Exception.Create(Format('Attempt to set symbol %s as used when it does not exist',[_name]));
+  }
 end;
 
 procedure TSymbolTable.SortByAddr;

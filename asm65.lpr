@@ -12,9 +12,10 @@ uses
 
 const
   DEFAULT_TAB_VALUE = 4;
-  SHORT_OPTIONS = 'e::hI:l::m::o:t:v:Vx::';
-  LONG_OPTIONS: array [1..10] of string =
+  SHORT_OPTIONS = 'd:e::hI:l::m::o:t:v:Vx::';
+  LONG_OPTIONS: array [1..11] of string =
     (
+      'define:',
       'errorlog::',
       'help',
       'include:',
@@ -167,6 +168,10 @@ begin
     ProcessFilename(basename,asm65.FilenameLog,'e','errorlog','.log');
     ProcessFilename(basename,asm65.FilenameMap,'m','map',     '.map');
     ProcessFilename(basename,asm65.FilenameObj,'o','object',  '.obj');
+    CmdOptionToList(Self,'d','define', asm65.CmdDefines);
+    CmdOptionToList(Self,'I','include',asm65.CmdIncludes,true);
+    AugmentIncludes(GetCurrentDir,asm65.CmdIncludes);
+    AugmentIncludes(ExtractFilePath(filename),asm65.CmdIncludes);
     try
       asm65.Assemble;
     except
@@ -221,6 +226,7 @@ begin
   writeln('Usage: asm6502 filename <options>');
   WriteLn('');
   WriteLn('Options:');
+  WriteLn('    -d <id> --define=<id>   Define one or more symbols');
   WriteLn('    -e <en> --errorlog=<en> Set error log to <en>');
   WriteLn('    -h      --help          Display this message');
   WriteLn('    -I <id> --include=<id>  Set the include directory to <id>');
@@ -242,8 +248,10 @@ begin
   WriteLn('    2 "War and Peace", lots more output');
   WriteLn('    3 Debug level output');
   WriteLn('');
-  WriteLn('The include file directory <id> can contain names delimited by ;');
-  WriteLn('for example --include=source/tables;source/help;/users/me/includes');
+  WriteLn('The include file directory and define list <id> can contain names or');
+  WriteLn('symbols delimited by ; for example:');
+  WriteLn('    --define=DEBUG;ALLOW_SPACES');
+  WriteLn('    --include=source/tables;source/help;/users/me/includes');
   WriteLn('');
 end;
 

@@ -328,8 +328,6 @@ LineComment2      = "//" {CommentChar}* ignore;
 					| F_LOW <expression> ")"						# ActFuncLow
 					| F_POS <string expr> "," <string expr> ")"		# ActFuncPos
 					| F_VALUE <string expr> ")"						# ActFuncValue
-					| K_TRUE										# ActExprTrue
-					| K_FALSE										# ActExprFalse
 					| "(" <expression> ")"							# ActExprBracket
 					| SymbolDef										# ActValueSymbol
 					| LocalAddress									# ActValueLocal

@@ -19,6 +19,8 @@ type
       FAssemblyStart:  TDateTime;
       FBytesFromLine:  integer;
       FBytesTotal:     integer;
+      FCmdDefines:     TStringList;
+      FCmdIncludes:    TStringList;
       FDefiningMacro:  boolean;
       FFilenameSrc:    string;
       FFileStack:      TFileStack;
@@ -54,6 +56,7 @@ type
       function  ActDecLiteral(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirByte(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDB(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActDirDD(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDefine(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDefineExpr(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDefmacro(_parser: TLCGParser): TLCGParserStackEntry;
@@ -79,7 +82,6 @@ type
       function  ActExprAnd(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActExprBracket(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActExprDiv(_parser: TLCGParser): TLCGParserStackEntry;
-      function  ActExprFalse(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActExprList(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActExprMinus(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActExprMod(_parser: TLCGParser): TLCGParserStackEntry;
@@ -89,7 +91,6 @@ type
       function  ActExprShl(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActExprShr(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActExprSub(_parser: TLCGParser): TLCGParserStackEntry;
-      function  ActExprTrue(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActExprXor(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActFuncAsc(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActFuncHigh(_parser: TLCGParser): TLCGParserStackEntry;
@@ -162,6 +163,8 @@ type
       procedure Monitor(LogType: TLCGLogType; const Message: string); override;
       procedure Monitor(LogType: TLCGLogType; const Message: string; const Args: array of const); override;
       function  Reduce(Parser: TLCGParser; RuleIndex: UINT32): TLCGParserStackEntry;
+      property CmdDefines:  TStringList     read FCmdDefines;
+      property CmdIncludes: TStringList     read FCmdIncludes;
       property FilenameSrc: string          read FFilenameSrc write SetFilenameSrc;
       property OnMonitor:   TLCGMonitorProc read FOnMonitor   write SetOnMonitor;
       property TabSize:     integer         read FTabSize     write FTabSize;
@@ -262,6 +265,8 @@ begin
   FOutput := TOutput.Create;
   FListing := TStringList.Create;
   FMacroList := TMacroList.Create;
+  FCmdDefines := TStringList.Create;
+  FCmdIncludes := TStringList.Create;
   FPass := 0;
   FTabSize := 4;
   FVerbose := False;
@@ -271,6 +276,8 @@ end;
 
 destructor TAssembler.Destroy;
 begin
+  FCmdIncludes.Free;
+  FCmdDefines.Free;
   FMacroList.Free;
   FListing.Free;
   FOutput.Free;
@@ -356,6 +363,8 @@ begin
   bcount := StrToInt(_parser.ParserStack[_parser.ParserSP-1].Buf);
   if bcount < 1 then
     Monitor(ltError,'Byte count must be greater than zero');
+  if (bval > 255) or (bval < -128) then
+    Monitor(ltError,'Byte value must be in the range -128 to 255');
   FBytesFromLine := bcount;
   SetLength(FOutputArr,bcount);
   for i := 0 to bcount-1 do
@@ -381,6 +390,36 @@ begin
         if (bval > 255) or (bval < -128) then
           Monitor(ltError,'Byte value %d not in range',[bval]);
         FOutputArr[i] := bval and $00FF;
+      end;
+    FOutput.Write(FOutputArr,FOrg,FBytesFromLine);
+  finally
+    sl.Free;
+  end;
+  Result.Buf := '';
+end;
+
+function TAssembler.ActDirDD(_parser: TLCGParser): TLCGParserStackEntry;
+var sl: TStringList;
+    i:   integer;
+    bval: int64;
+begin
+  if not ProcessingAllowed then
+    Exit;
+  sl := TStringList.Create;
+  try
+    sl.Delimiter := ',';
+    sl.DelimitedText := _parser.ParserStack[_parser.ParserSP-1].Buf;
+    FBytesFromLine := sl.Count * 4;
+    SetLength(FOutputArr,FBytesFromLine);
+    for i := 0 to sl.Count-1 do
+      begin
+        bval := StrToInt(sl[i]);
+        if (bval > HIGH(uint32)) or (bval < LOW(int32)) then
+          Monitor(ltError,'Byte value %d not in range',[bval]);
+        FOutputArr[i*4+0] := bval and $000000FF;
+        FOutputArr[i*4+1] := (bval shr 8) and $000000FF;
+        FOutputArr[i*4+2] := (bval shr 16) and $000000FF;
+        FOutputArr[i*4+3] := (bval shr 24) and $000000FF;
       end;
     FOutput.Write(FOutputArr,FOrg,FBytesFromLine);
   finally
@@ -535,7 +574,7 @@ function TAssembler.ActDirIfdef(_parser: TLCGParser): TLCGParserStackEntry;
 var succeeded: boolean;
 begin
   FSymbols.SetUsed(_parser.ParserStack[_parser.ParserSP-1].Buf);
-  succeeded := FSymbols.Exists(_parser.ParserStack[_parser.ParserSP-1].Buf);
+  succeeded := FSymbols.ExistsInPass(FPass,_parser.ParserStack[_parser.ParserSP-1].Buf);
   FIfStack.Push(succeeded);
   Result.Buf := '';
 end;
@@ -544,7 +583,7 @@ function TAssembler.ActDirIfndef(_parser: TLCGParser): TLCGParserStackEntry;
 var succeeded: boolean;
 begin
   FSymbols.SetUsed(_parser.ParserStack[_parser.ParserSP-1].Buf);
-  succeeded := not FSymbols.Exists(_parser.ParserStack[_parser.ParserSP-1].Buf);
+  succeeded := not FSymbols.ExistsInPass(FPass,_parser.ParserStack[_parser.ParserSP-1].Buf);
   FIfStack.Push(succeeded);
   Result.Buf := '';
 end;
@@ -552,18 +591,49 @@ end;
 function TAssembler.ActDirInclude(_parser: TLCGParser): TLCGParserStackEntry;
 var parentfile: string;
     myfile:     string;
+    newfile:    string;
     saveddir:   string;
+    i:          integer;
+  // Check if a file combo exists, return true if it does
+  function CheckFile(folder: string; fn: string): boolean;
+  begin
+    SetCurrentDir(folder);
+    try
+      newfile := ExpandFilename(myfile);
+    finally
+      SetCurrentDir(saveddir);
+    end;
+    Monitor(ltDebug,'Searching for include file %s in folder %s',[myfile,folder]);
+    if FileExists(newfile) then
+      begin
+        Monitor(ltDebug,'Found include file %s in folder %s',[myfile,folder]);
+        CheckFile := True;
+        FIncludeNext := newfile;
+      end
+    else
+      CheckFile := False;
+  end;
 begin
   Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
+  // Rules for processing the include file
+  // The file will first be processed relative folders in the following order
+  // 1. The parent file which called the include
+  // 2. The folder of the initial source file (could be same as 1.)
+  // 3. The current directory used to start the software (could also be same as 1.)
+  // 4. The folders specified in the --include directive
+  // 5.  :
+  // 6.  :
   saveddir := GetCurrentDir;
   parentfile := FFileStack.Filename;
-  SetCurrentDir(ExtractFilePath(parentfile));
   myfile := _parser.ParserStack[_parser.ParserSP-1].Buf;
-  myfile := ExpandFilename(myfile);
-  SetCurrentDir(saveddir);
-  FIncludeNext := myfile;
+  if CheckFile(ExtractFilePath(parentfile),myfile) then
+    Exit;
+  for i := 0 to CmdIncludes.Count-1 do
+    if CheckFile(CmdIncludes[i],myfile) then
+      Exit;
+  Monitor(ltError,'Include file %s could not be found',[myfile]);
 end;
 
 function TAssembler.ActDirList(_parser: TLCGParser): TLCGParserStackEntry;
@@ -648,11 +718,6 @@ begin
                          StrToInt(_parser.ParserStack[_parser.ParserSP-1].Buf));
 end;
 
-function TAssembler.ActExprFalse(_parser: TLCGParser): TLCGParserStackEntry;
-begin
-  Result.Buf := '0';
-end;
-
 function TAssembler.ActExprList(_parser: TLCGParser): TLCGParserStackEntry;
 begin
   Result.Buf := _parser.ParserStack[_parser.ParserSP-3].Buf +
@@ -690,9 +755,12 @@ begin
 end;
 
 function TAssembler.ActExprShl(_parser: TLCGParser): TLCGParserStackEntry;
+var val1,val2: uint32;
 begin
-  Result.Buf := IntToStr(StrToInt(_parser.ParserStack[_parser.ParserSP-3].Buf) shl
-                         StrToInt(_parser.ParserStack[_parser.ParserSP-1].Buf));
+  val1 := StrToInt(_parser.ParserStack[_parser.ParserSP-3].Buf);
+  val2 := StrToInt(_parser.ParserStack[_parser.ParserSP-1].Buf);
+  val1 := val1 shl val2;
+  Result.Buf := IntToStr(val1 and $FFFF);
 end;
 
 function TAssembler.ActExprShr(_parser: TLCGParser): TLCGParserStackEntry;
@@ -705,11 +773,6 @@ function TAssembler.ActExprSub(_parser: TLCGParser): TLCGParserStackEntry;
 begin
   Result.Buf := IntToStr(StrToInt(_parser.ParserStack[_parser.ParserSP-3].Buf) -
                          StrToInt(_parser.ParserStack[_parser.ParserSP-1].Buf));
-end;
-
-function TAssembler.ActExprTrue(_parser: TLCGParser): TLCGParserStackEntry;
-begin
-  Result.Buf := '1';
 end;
 
 function TAssembler.ActExprXor(_parser: TLCGParser): TLCGParserStackEntry;
@@ -1142,6 +1205,9 @@ begin
 end;
 
 procedure TAssembler.InitPass;
+var i: integer;
+    symbolname: string;
+    message:    string;
 begin
   FBytesTotal := 0;
   FDefiningMacro := False;
@@ -1152,10 +1218,20 @@ begin
   FMacroList.Init;
   FOrg := $0200;
   FOutput.Clear;
+  // Now add the predefined symbols if present on the command line
+  for i := 0 to CmdDefines.Count-1 do
+    begin
+      symbolname := CmdDefines[i];
+      message := FSymbols.Define(FPass,symbolname);
+      if message <> '' then
+        Monitor(ltError,message);
+    end;
 end;
 
 procedure TAssembler.InitStart;
 begin
+  Monitor(ltWarAndPeace,'Defines = %s',[CmdDefines.DelimitedText]);
+  Monitor(ltWarAndPeace,'Includes = %s',[CmdIncludes.DelimitedText]);
   Monitor(ltWarAndPeace,'HEX filename = %s',[FilenameHex]);
   Monitor(ltWarAndPeace,'LST filename = %s',[FilenameLst]);
   Monitor(ltWarAndPeace,'LOG filename = %s',[FilenameLog]);
@@ -1395,6 +1471,7 @@ begin
   RegisterProc('ActDecLiteral',     @ActDecLiteral, _procs);
   RegisterProc('ActDirByte',        @ActDirByte, _procs);
   RegisterProc('ActDirDB',          @ActDirDB, _procs);
+  RegisterProc('ActDirDD',          @ActDirDD, _procs);
   RegisterProc('ActDirDefine',      @ActDirDefine, _procs);
   RegisterProc('ActDirDefineExpr',  @ActDirDefineExpr, _procs);
   RegisterProc('ActDirDefmacro',    @ActDirDefmacro, _procs);
@@ -1420,7 +1497,6 @@ begin
   RegisterProc('ActExprAnd',        @ActExprAnd, _procs);
   RegisterProc('ActExprBracket',    @ActExprBracket, _procs);
   RegisterProc('ActExprDiv',        @ActExprDiv, _procs);
-  RegisterProc('ActExprFalse',      @ActExprFalse, _procs);
   RegisterProc('ActExprList',       @ActExprList, _procs);
   RegisterProc('ActExprMinus',      @ActExprMinus, _procs);
   RegisterProc('ActExprMod',        @ActExprMod, _procs);
@@ -1430,7 +1506,6 @@ begin
   RegisterProc('ActExprShl',        @ActExprShl, _procs);
   RegisterProc('ActExprShr',        @ActExprShr, _procs);
   RegisterProc('ActExprSub',        @ActExprSub, _procs);
-  RegisterProc('ActExprTrue',       @ActExprTrue, _procs);
   RegisterProc('ActExprXor',        @ActExprXor, _procs);
   RegisterProc('ActFuncAsc',        @ActFuncAsc, _procs);
   RegisterProc('ActFuncHigh',       @ActFuncHigh, _procs);
