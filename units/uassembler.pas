@@ -22,6 +22,7 @@ type
       FCmdDefines:     TStringList;
       FCmdIncludes:    TStringList;
       FDefiningMacro:  boolean;
+      FForceList:      boolean;
       FFilenameSrc:    string;
       FFileStack:      TFileStack;
       FIfStack:        TIfStack;
@@ -71,12 +72,15 @@ type
       function  ActDirIfdef(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirIfndef(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirInclude(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActDirIncludeList(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirList(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirMacro(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirMacroNoexpr(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirMessage(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirNolist(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirOrg(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActDirSet(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActDirUndefine(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirWarning(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActExprAdd(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActExprAnd(_parser: TLCGParser): TLCGParserStackEntry;
@@ -136,11 +140,12 @@ type
       function  ActValueSymbol(_parser: TLCGParser): TLCGParserStackEntry;
       procedure FilesClose;
       procedure FilesOpen;
+      function  GetSource: string;
       procedure InitLine;
       procedure InitPass;
       procedure InitStart;
       procedure OutputListingLine(const _asmline: string);
-      procedure ProcessFile(const _fn: string);
+      procedure ProcessFile(const _fn: string; _listing: boolean = True);
       procedure ProcessFileInner;
       function  ProcessingAllowed: boolean;
       procedure ProcessMacroExpansion;
@@ -167,6 +172,7 @@ type
       property CmdIncludes: TStringList     read FCmdIncludes;
       property FilenameSrc: string          read FFilenameSrc write SetFilenameSrc;
       property OnMonitor:   TLCGMonitorProc read FOnMonitor   write SetOnMonitor;
+      property Source:      string          read GetSource;
       property TabSize:     integer         read FTabSize     write FTabSize;
   end;
 
@@ -636,6 +642,12 @@ begin
   Monitor(ltError,'Include file %s could not be found',[myfile]);
 end;
 
+function TAssembler.ActDirIncludeList(_parser: TLCGParser): TLCGParserStackEntry;
+begin
+  FForceList := True;
+  Result := ActDirInclude(_parser);
+end;
+
 function TAssembler.ActDirList(_parser: TLCGParser): TLCGParserStackEntry;
 begin
   Result.Buf := '';
@@ -685,6 +697,34 @@ begin
   if not ProcessingAllowed then
     Exit;
   FOrg := StrToInt(_parser.ParserStack[_parser.ParserSP-1].Buf);
+end;
+
+function TAssembler.ActDirSet(_parser: TLCGParser): TLCGParserStackEntry;
+var symbolname: string;
+    expression: string;
+    message:    string;
+begin
+  Result.Buf := '';
+  if not ProcessingAllowed then
+    Exit;
+  symbolname := _parser.ParserStack[_parser.ParserSP-3].Buf;
+  expression := _parser.ParserStack[_parser.ParserSP-1].Buf;
+  message := FSymbols.Define(FPass,symbolname,expression,true);
+  if message <> '' then
+    Monitor(ltError,message);
+end;
+
+function TAssembler.ActDirUndefine(_parser: TLCGParser): TLCGParserStackEntry;
+var symbolname: string;
+    message:    string;
+begin
+  Result.Buf := '';
+  if not ProcessingAllowed then
+    Exit;
+  symbolname := _parser.ParserStack[_parser.ParserSP-1].Buf;
+  message := FSymbols.Undefine(symbolname);
+  if message <> '' then
+    Monitor(ltError,message);
 end;
 
 function TAssembler.ActDirWarning(_parser: TLCGParser): TLCGParserStackEntry;
@@ -1197,6 +1237,13 @@ begin
   end;
 end;
 
+function TAssembler.GetSource: string;
+begin
+  Result := '';
+  if FFileStack.Count > 0 then
+    Result := FFileStack.Filename;
+end;
+
 procedure TAssembler.InitLine;
 begin
   FAddrMode := ADM_IMPL;
@@ -1211,6 +1258,7 @@ var i: integer;
 begin
   FBytesTotal := 0;
   FDefiningMacro := False;
+  FForceList := False;
   FLineCount := 0;
   FList := True;
   FListNext := True;
@@ -1246,6 +1294,8 @@ var s: string;
     lineinfo: string;
     line,column: integer;
     msg: string;
+    raisedin: string;
+    i: integer;
 begin
   if LogType > FLogLevel then
     Exit;
@@ -1274,7 +1324,14 @@ begin
       else
         lineinfo := Format('[%d] ',[line]);
     end;
+  raisedin := Source;
   msg := Format('%s: %s%s',[prefix,lineinfo,message]);
+  if (LogType in [ltInternal,ltError,ltWarning]) and (raisedin <> '') then
+    msg := msg + ', raised in ' + raisedin;
+  if FLogLevel >= ltVerbose then
+    for i := FFileStack.Count-2 downto 0 do
+      msg := msg + #13 + #10 + '          > ' + FFileStack[i].Filename;
+
   if Assigned(FStreamLog)  then
     begin
       s := msg + #13 + #10;
@@ -1297,7 +1354,9 @@ var byteindex: integer;
     i:         integer;
     s:         string;
 begin
-  if (FPass = 1) {or (FFileStack.Count > 1)} or (not FList) { or (not ProcessingAllowed)} then
+  if (FPass = 1) or
+     (not FList) or
+     (not FFileStack.IsListing) then
     Exit;
   if FBytesFromLine = 0 then
     FListing.Add(StringOfChar(' ',HEX_WIDTH) + _asmline)
@@ -1332,10 +1391,10 @@ begin
     end;
 end;
 
-procedure TAssembler.ProcessFile(const _fn: string);
+procedure TAssembler.ProcessFile(const _fn: string; _listing: boolean);
 begin
   Monitor(ltWarAndPeace,'Processing file %s',[_fn]);
-  FFileStack.Push(_fn);
+  FFileStack.Push(_fn,_listing);
   try
     ProcessFileInner;
   finally
@@ -1346,6 +1405,7 @@ end;
 procedure TAssembler.ProcessFileInner;
 var asmline: string;
     incl:    string;
+    list:    boolean;
     anew:    integer;
 begin
   while not FFileStack.EOF do
@@ -1380,8 +1440,10 @@ begin
           if FIncludeNext <> '' then
             begin
               incl := FIncludeNext;
+              list := FForceList;
               FIncludeNext := '';
-              ProcessFile(incl); // Recursive!!!
+              FForceList := False;
+              ProcessFile(incl,list); // Recursive!!!
             end;
         end
       else
@@ -1486,12 +1548,15 @@ begin
   RegisterProc('ActDirIfdef',       @ActDirIfdef, _procs);
   RegisterProc('ActDirIfndef',      @ActDirIfndef, _procs);
   RegisterProc('ActDirInclude',     @ActDirInclude, _procs);
+  RegisterProc('ActDirIncludeList', @ActDirIncludeList, _procs);
   RegisterProc('ActDirList',        @ActDirList, _procs);
   RegisterProc('ActDirMacro',       @ActDirMacro, _procs);
   RegisterProc('ActDirMacroNoexpr', @ActDirMacroNoexpr, _procs);
   RegisterProc('ActDirMessage',     @ActDirMessage, _procs);
   RegisterProc('ActDirNolist',      @ActDirNolist, _procs);
   RegisterProc('ActDirOrg',         @ActDirOrg, _procs);
+  RegisterProc('ActDirSet',         @ActDirSet, _procs);
+  RegisterProc('ActDirUndefine',    @ActDirUndefine, _procs);
   RegisterProc('ActDirWarning',     @ActDirWarning, _procs);
   RegisterProc('ActExprAdd',        @ActExprAdd, _procs);
   RegisterProc('ActExprAnd',        @ActExprAnd, _procs);

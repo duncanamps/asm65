@@ -140,6 +140,7 @@ Assignment			= "=" symbol;
 Accum				= MIXED("A")			keyword;
 ComX				= MIXED(",X")			keyword;
 ComY				= MIXED(",Y")			keyword;
+List				= MIXED("LIST")			keyword;
 F_ASC				= MIXED("ASC(")			keyword;
 F_BUILD				= MIXED("BUILD()")		keyword;
 F_CHR				= MIXED("CHR(")			keyword;
@@ -229,6 +230,7 @@ LineComment2      = "//" {CommentChar}* ignore;
 					| K_IF		 <expression>						# ActDirIf
 					| K_IFDEF    SymbolDef							# ActDirIfdef
 					| K_IFNDEF   SymbolDef							# ActDirIfndef
+					| K_INCLUDE  List <string expr>					# ActDirIncludeList
 					| K_INCLUDE  <string expr>						# ActDirInclude
 					| K_LIST										# ActDirList
 					| K_MACRO	 SymbolDef <expression list>		# ActDirMacro

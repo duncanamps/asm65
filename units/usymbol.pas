@@ -41,11 +41,12 @@ type
       function  CalcHash(_name: string): integer;
       procedure CheckHashSize;
       procedure ClearHash;
+      procedure ReHash;
     public
       constructor Create;
       destructor Destroy; override;
       function  Define(_pass: integer; const _name: string): string;
-      function  Define(_pass: integer; const _name: string; const _variable: string): string;
+      function  Define(_pass: integer; const _name: string; const _variable: string; _overwrite: boolean = False): string;
       procedure Dump(_sl: TStringList);
       function  IndexOf(_key: string): integer;
       function  Exists(_name: string): boolean;
@@ -54,6 +55,7 @@ type
       procedure SetUsed(const _name: string);
       procedure SortByAddr;
       procedure SortByName;
+      function  Undefine(const _name: string): string;
       function  Variable(_pass: integer; _name: string; _default: UINT16): string;
   end;
 
@@ -148,16 +150,13 @@ begin
 end;
 
 procedure TSymbolTable.CheckHashSize;
-var i:integer;
 begin
   if (Count * HASH_MARGIN) > FHashSize then
     begin // Englarge the hash table
       FHashSize := NextPrime(FHashSize * HASH_MULTIPLIER);
       SetLength(FHashTable,FHashSize);
-      ClearHash;
       // Now re-hash everything
-      for i := 0 to Count-1 do
-        AddHash(Items[i].SymName,i);
+      ReHash;
     end;
 end;
 
@@ -197,12 +196,20 @@ begin
               Items[index] := entry;
             end
           else
-            Result := 'Symbol ' + _name + ' defined in pass 2 but not pass 1';
+            begin  // Was .UNDEFINEd in pass 1, need to re-define in pass 2
+              entry.SymName     := UpperCase(_name);
+              entry.SymPass     := _pass;
+              entry.SymHasValue := False;
+              entry.SymUsed     := False;
+              entry.SymValue    := 0;
+              AddHash(_name,Add(entry));
+              CheckHashSize;
+            end;
         end;
   end; // Case
 end;
 
-function TSymbolTable.Define(_pass: integer; const _name: string; const _variable: string): string;
+function TSymbolTable.Define(_pass: integer; const _name: string; const _variable: string; _overwrite: boolean = False): string;
 var entry: TSymbolEntry;
     index: integer;
 begin
@@ -210,7 +217,19 @@ begin
   case _pass of
     1:  begin
           if Exists(_name) then
-            Result := 'Symbol ' + _name + ' already exists'
+            begin
+              if not _overwrite then
+                Result := 'Symbol ' + _name + ' already exists'
+              else
+                begin
+                  index := IndexOf(_name);
+                  entry := Items[index];
+                  entry.SymPass     := _pass;
+                  entry.SymHasValue := True;
+                  entry.SymValue := StrToInt(_variable);
+                  Items[index] := entry;
+                end;
+            end
           else
             begin
               entry.SymName     := UpperCase(_name);
@@ -228,11 +247,21 @@ begin
               index := IndexOf(_name);
               entry := Items[index];
               entry.SymPass := _pass;
+              entry.SymHasValue := True;
+              entry.SymValue    := StrToInt(_variable);
               Items[index] := entry;
             end
           else
-            Result := 'Symbol ' + _name + ' defined in pass 2 but not pass 1';
-        end;
+            begin  // Was .UNDEFINEd in pass 1, need to re-define in pass 2
+              entry.SymName     := UpperCase(_name);
+              entry.SymPass     := _pass;
+              entry.SymHasValue := True;
+              entry.SymUsed     := False;
+              entry.SymValue    := StrToInt(_variable);
+              AddHash(_name,Add(entry));
+              CheckHashSize;
+            end;
+          end;
   end; // Case
 end;
 
@@ -290,6 +319,14 @@ begin
     end;
 end;
 
+procedure TSymbolTable.ReHash;
+var i: integer;
+begin
+  ClearHash;
+  for i := 0 to Count-1 do
+    AddHash(Items[i].SymName,i);
+end;
+
 procedure TSymbolTable.SetUsed(_index: integer);
 var rec: TSymbolEntry;
 begin
@@ -316,6 +353,20 @@ end;
 procedure TSymbolTable.SortByName;
 begin
   Sort(@NameCompareFunc);
+end;
+
+function TSymbolTable.Undefine(const _name: string): string;
+var index: integer;
+begin
+  Result := '';
+  index := IndexOf(_name);
+  if index < 0 then
+    Result := 'Cannot .UNDEFINE non-existent symbol ' + _name
+  else
+    begin
+      Delete(index);
+      ReHash;
+    end;
 end;
 
 function TSymbolTable.Variable(_pass: integer; _name: string; _default: UINT16): string;

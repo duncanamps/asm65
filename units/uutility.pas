@@ -17,7 +17,7 @@ implementation
 
 procedure AugmentIncludes(s: string; list: TStringList);
 begin
-  s := IncludeTrailingPathDelimiter(s);
+  {%H-}s := IncludeTrailingPathDelimiter(s);
   if list.IndexOf(s) < 0 then
     list.Insert(0,s);
 end;

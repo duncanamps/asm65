@@ -8,9 +8,9 @@
       <Unit0>
         <Filename Value="asm65.lpr"/>
         <IsPartOfProject Value="True"/>
-        <TopLine Value="159"/>
-        <CursorPos X="78" Y="172"/>
-        <UsageCount Value="162"/>
+        <TopLine Value="197"/>
+        <CursorPos X="50" Y="206"/>
+        <UsageCount Value="165"/>
         <Loaded Value="True"/>
       </Unit0>
       <Unit1>
@@ -19,16 +19,16 @@
         <EditorIndex Value="7"/>
         <TopLine Value="17"/>
         <CursorPos X="44" Y="31"/>
-        <UsageCount Value="162"/>
+        <UsageCount Value="165"/>
         <Loaded Value="True"/>
       </Unit1>
       <Unit2>
         <Filename Value="..\..\..\lacogen\lac\core\deployment_parser_module.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="2"/>
-        <TopLine Value="895"/>
-        <CursorPos X="38" Y="914"/>
-        <UsageCount Value="81"/>
+        <TopLine Value="1035"/>
+        <CursorPos Y="1057"/>
+        <UsageCount Value="84"/>
         <Loaded Value="True"/>
       </Unit2>
       <Unit3>
@@ -37,44 +37,44 @@
         <EditorIndex Value="3"/>
         <TopLine Value="34"/>
         <CursorPos X="3" Y="45"/>
-        <UsageCount Value="81"/>
+        <UsageCount Value="84"/>
         <Loaded Value="True"/>
       </Unit3>
       <Unit4>
         <Filename Value="units\usymbol.pas"/>
         <IsPartOfProject Value="True"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="11"/>
-        <TopLine Value="255"/>
-        <CursorPos X="78" Y="264"/>
-        <UsageCount Value="80"/>
+        <TopLine Value="244"/>
+        <CursorPos Y="265"/>
+        <UsageCount Value="83"/>
         <Loaded Value="True"/>
       </Unit4>
       <Unit5>
         <Filename Value="units\uutility.pas"/>
         <IsPartOfProject Value="True"/>
+        <IsVisibleTab Value="True"/>
         <EditorIndex Value="12"/>
-        <TopLine Value="17"/>
-        <CursorPos X="79" Y="32"/>
-        <UsageCount Value="80"/>
+        <TopLine Value="9"/>
+        <CursorPos X="8" Y="20"/>
+        <UsageCount Value="83"/>
         <Loaded Value="True"/>
       </Unit5>
       <Unit6>
         <Filename Value="units\uassembler.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="1"/>
-        <TopLine Value="571"/>
-        <CursorPos X="48" Y="586"/>
-        <UsageCount Value="79"/>
+        <TopLine Value="1320"/>
+        <CursorPos X="42" Y="1333"/>
+        <UsageCount Value="82"/>
         <Loaded Value="True"/>
       </Unit6>
       <Unit7>
         <Filename Value="units\ufilestack.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="9"/>
-        <TopLine Value="137"/>
-        <CursorPos X="8" Y="148"/>
-        <UsageCount Value="72"/>
+        <TopLine Value="116"/>
+        <CursorPos X="3" Y="118"/>
+        <UsageCount Value="75"/>
         <Loaded Value="True"/>
       </Unit7>
       <Unit8>
@@ -83,7 +83,7 @@
         <EditorIndex Value="8"/>
         <TopLine Value="18"/>
         <CursorPos Y="40"/>
-        <UsageCount Value="65"/>
+        <UsageCount Value="68"/>
         <Loaded Value="True"/>
       </Unit8>
       <Unit9>
@@ -92,16 +92,16 @@
         <EditorIndex Value="6"/>
         <TopLine Value="104"/>
         <CursorPos X="31" Y="121"/>
-        <UsageCount Value="56"/>
+        <UsageCount Value="59"/>
         <Loaded Value="True"/>
       </Unit9>
       <Unit10>
         <Filename Value="units\uifstack.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="10"/>
-        <TopLine Value="77"/>
-        <CursorPos Y="99"/>
-        <UsageCount Value="51"/>
+        <TopLine Value="43"/>
+        <CursorPos Y="54"/>
+        <UsageCount Value="54"/>
         <Loaded Value="True"/>
       </Unit10>
       <Unit11>
@@ -109,7 +109,7 @@
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="5"/>
         <CursorPos X="79" Y="18"/>
-        <UsageCount Value="43"/>
+        <UsageCount Value="46"/>
         <Loaded Value="True"/>
       </Unit11>
       <Unit12>
@@ -621,7 +621,7 @@
         <EditorIndex Value="4"/>
         <TopLine Value="156"/>
         <CursorPos X="94" Y="164"/>
-        <UsageCount Value="16"/>
+        <UsageCount Value="17"/>
         <Loaded Value="True"/>
       </Unit81>
       <Unit82>
@@ -652,119 +652,122 @@
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="units\uassembler.pas"/>
-        <Caret Line="545" Column="3" TopLine="540"/>
+        <Caret Line="28" Column="19" TopLine="9"/>
       </Position1>
       <Position2>
-        <Filename Value="units\usymbol.pas"/>
-        <Caret Line="53" Column="17" TopLine="43"/>
+        <Filename Value="units\uassembler.pas"/>
+        <Caret Line="613" Column="21" TopLine="595"/>
       </Position2>
       <Position3>
-        <Filename Value="units\usymbol.pas"/>
-        <Caret Line="298" Column="17" TopLine="294"/>
+        <Filename Value="units\uassembler.pas"/>
+        <Caret Line="1416" Column="22" TopLine="1398"/>
       </Position3>
       <Position4>
-        <Filename Value="units\usymbol.pas"/>
+        <Filename Value="units\uassembler.pas"/>
+        <Caret Line="145" Column="72" TopLine="136"/>
       </Position4>
       <Position5>
-        <Filename Value="units\usymbol.pas"/>
-        <Caret Line="30" Column="38" TopLine="11"/>
+        <Filename Value="units\uassembler.pas"/>
+        <Caret Line="1381" Column="35" TopLine="1365"/>
       </Position5>
       <Position6>
-        <Filename Value="units\usymbol.pas"/>
-        <Caret Line="31" Column="38" TopLine="12"/>
+        <Filename Value="asm65.lpr"/>
+        <Caret Line="172" Column="78" TopLine="159"/>
       </Position6>
       <Position7>
-        <Filename Value="units\usymbol.pas"/>
-        <Caret Line="123" Column="21" TopLine="104"/>
+        <Filename Value="units\uassembler.pas"/>
       </Position7>
       <Position8>
-        <Filename Value="units\usymbol.pas"/>
-        <Caret Line="217" Column="40" TopLine="198"/>
+        <Filename Value="units\uassembler.pas"/>
+        <Caret Line="1521" Column="55" TopLine="1510"/>
       </Position8>
       <Position9>
-        <Filename Value="units\usymbol.pas"/>
-        <Caret Line="272" Column="21" TopLine="253"/>
+        <Filename Value="units\uassembler.pas"/>
+        <Caret Line="73" Column="27" TopLine="73"/>
       </Position9>
       <Position10>
-        <Filename Value="units\usymbol.pas"/>
-        <Caret Line="275" Column="23" TopLine="256"/>
+        <Filename Value="units\uassembler.pas"/>
+        <Caret Line="643" Column="36" TopLine="634"/>
       </Position10>
       <Position11>
         <Filename Value="units\uassembler.pas"/>
-        <Caret Line="545" Column="3" TopLine="540"/>
+        <Caret Line="144" Column="19" TopLine="144"/>
       </Position11>
       <Position12>
         <Filename Value="units\uassembler.pas"/>
+        <Caret Line="1252" Column="23" TopLine="1243"/>
       </Position12>
       <Position13>
         <Filename Value="units\uassembler.pas"/>
-        <Caret Line="84" TopLine="77"/>
+        <Caret Line="29" Column="10" TopLine="23"/>
       </Position13>
       <Position14>
         <Filename Value="units\uassembler.pas"/>
-        <Caret Line="687" TopLine="681"/>
+        <Caret Line="615" Column="21" TopLine="597"/>
       </Position14>
       <Position15>
         <Filename Value="units\uassembler.pas"/>
-        <Caret Line="1438" Column="46" TopLine="1435"/>
+        <Caret Line="1390" Column="22" TopLine="1379"/>
       </Position15>
       <Position16>
-        <Filename Value="units\uassembler.pas"/>
-        <Caret Line="58" Column="25" TopLine="52"/>
+        <Filename Value="..\..\..\lacogen\lac\core\deployment_parser_module.pas"/>
+        <Caret Line="1055" TopLine="1044"/>
       </Position16>
       <Position17>
         <Filename Value="units\uassembler.pas"/>
-        <Caret Line="412" Column="17" TopLine="404"/>
+        <Caret Line="642" Column="15" TopLine="593"/>
       </Position17>
       <Position18>
         <Filename Value="units\uassembler.pas"/>
-        <Caret Line="91" TopLine="83"/>
+        <Caret Line="646" TopLine="635"/>
       </Position18>
       <Position19>
         <Filename Value="units\uassembler.pas"/>
-        <Caret Line="764" Column="40" TopLine="753"/>
+        <Caret Line="143" Column="35" TopLine="135"/>
       </Position19>
       <Position20>
         <Filename Value="units\uassembler.pas"/>
-        <Caret Line="765" Column="59" TopLine="747"/>
+        <Caret Line="1188" Column="12" TopLine="1169"/>
       </Position20>
       <Position21>
-        <Filename Value="units\uassembler.pas"/>
-        <Caret Line="194" TopLine="192"/>
+        <Filename Value="units\ufilestack.pas"/>
+        <Caret Line="30" Column="28" TopLine="13"/>
       </Position21>
       <Position22>
         <Filename Value="units\uassembler.pas"/>
+        <Caret Line="1246" Column="34" TopLine="1194"/>
       </Position22>
       <Position23>
         <Filename Value="units\uassembler.pas"/>
-        <Caret Line="20" Column="12"/>
+        <Caret Line="163" TopLine="163"/>
       </Position23>
       <Position24>
-        <Filename Value="units\uassembler.pas"/>
-        <Caret Line="21" Column="12" TopLine="2"/>
+        <Filename Value="..\..\..\lacogen\lac\core\deployment_parser_module.pas"/>
+        <Caret Line="165" Column="17" TopLine="156"/>
       </Position24>
       <Position25>
-        <Filename Value="units\uassembler.pas"/>
-        <Caret Line="57" Column="27" TopLine="40"/>
+        <Filename Value="..\..\..\lacogen\lac\core\deployment_parser_module.pas"/>
+        <Caret Line="1055" Column="49" TopLine="1049"/>
       </Position25>
       <Position26>
-        <Filename Value="units\uassembler.pas"/>
-        <Caret Line="357" Column="21" TopLine="346"/>
+        <Filename Value="..\..\..\lacogen\lac\core\deployment_parser_module.pas"/>
+        <Caret Line="1054" Column="80" TopLine="1043"/>
       </Position26>
       <Position27>
-        <Filename Value="units\usymbol.pas"/>
-        <Caret Line="291" Column="22" TopLine="272"/>
+        <Filename Value="units\uassembler.pas"/>
+        <Caret Line="169" Column="20" TopLine="163"/>
       </Position27>
       <Position28>
         <Filename Value="units\uassembler.pas"/>
+        <Caret Line="1326" Column="15" TopLine="1309"/>
       </Position28>
       <Position29>
         <Filename Value="units\uassembler.pas"/>
-        <Caret Line="71" Column="28" TopLine="54"/>
+        <Caret Line="163" TopLine="163"/>
       </Position29>
       <Position30>
-        <Filename Value="units\usymbol.pas"/>
-        <Caret Line="51" Column="46" TopLine="34"/>
+        <Filename Value="units\uassembler.pas"/>
+        <Caret Line="1333" Column="42" TopLine="1320"/>
       </Position30>
     </JumpHistory>
     <RunParams>
@@ -772,7 +775,7 @@
       <Modes Count="1" ActiveMode="default">
         <Mode0 Name="default">
           <local>
-            <CommandLineParams Value="code_examples\test6.asm --verbose=0"/>
+            <CommandLineParams Value="code_examples\test_all.asm --verbose=0 -l -m"/>
           </local>
         </Mode0>
       </Modes>

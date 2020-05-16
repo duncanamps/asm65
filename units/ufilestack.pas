@@ -14,6 +14,7 @@ type
     Filename:  string;
     List:      TStringList;
     InputLine: integer;
+    Listing:   boolean;
     class operator = (fse1, fse2: TFileStackEntry): boolean;
   end;
 
@@ -25,18 +26,20 @@ type
       function  GetEOF: boolean;
       function  GetFilename: string;
       function  GetInputLine: integer;
+      function  GetIsListing: boolean;
       function  GetTop: TFileStackEntry;
     public
       constructor Create(_parser: TLCGParser);
       function  GetLine: string;
       procedure InsertLine(const s: string);
       procedure Pop;
-      procedure Push(filename: string);
+      procedure Push(filename: string; _listing: boolean = True);
       procedure PushMacro(macroname: string; sl: TStringList; parms: TStringList);
       procedure Monitor(LogType: TLCGLogType; const Message: string);
       property EOF:       boolean          read GetEOF;
       property Filename:  string           read GetFilename;
       property InputLine: integer          read GetInputLine;
+      property IsListing: boolean          read GetIsListing;
       property OnMonitor: TLCGMonitorProc  read FOnMonitor   write FOnMonitor;
       property Top:       TFileStackEntry  read GetTop;
   end;
@@ -87,6 +90,13 @@ begin
   Result := Top.InputLine;
 end;
 
+function TFileStack.GetIsListing: boolean;
+begin
+  Result := False;
+  if Count > 0 then
+    Result := Items[Count-1].Listing;
+end;
+
 function TFileStack.GetLine: string;
 var rec: TFileStackEntry;
 begin
@@ -121,7 +131,7 @@ begin
   Delete(Count-1);
 end;
 
-procedure TFileStack.Push(filename: string);
+procedure TFileStack.Push(filename: string; _listing: boolean);
 var rec: TFileStackEntry;
     i:   integer;
 begin
@@ -132,6 +142,10 @@ begin
   rec.Filename  := filename;
   rec.List := TStringList.Create;
   rec.List.LoadFromFile(filename);
+  rec.Listing := _listing;
+  if Count > 0 then
+    if Items[Count-1].Listing = False then
+      rec.Listing := False;;
   for i := 0 to rec.List.Count-1 do
     if Length(rec.List[i]) > MAX_LINE_LENGTH then
       FParser.Monitor(ltError,'Input line exceeds maximum line length of %s',[MAX_LINE_LENGTH])
@@ -158,6 +172,10 @@ begin
     for j := 0 to parms.Count-1 do
       rec.List[i] := StringReplace(rec.List[i],'@'+IntToStr(j),parms[j],[rfReplaceAll]);
   rec.InputLine := 0;
+  rec.Listing := True;
+  if Count > 0 then
+    if Items[Count-1].Listing = False then
+      rec.Listing := False;;
   Add(rec);
 end;
 
