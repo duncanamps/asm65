@@ -47,6 +47,7 @@ type
       FSymbols:        TSymbolTable;
       FTabSize:        integer;
       FVerbose:        boolean;
+      function  ActBinLiteral(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActCompEQ(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActCompGE(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActCompGT(_parser: TLCGParser): TLCGParserStackEntry;
@@ -62,6 +63,7 @@ type
       function  ActDirDefineExpr(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDefmacro(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDS(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActDirDSH(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDSZ(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDW(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirElse(_parser: TLCGParser): TLCGParserStackEntry;
@@ -106,7 +108,9 @@ type
       function  ActIgnore(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActInstruction(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActLabel(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActLabelC(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActLabelLocal(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActLabelLocalC(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActLogAnd(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActLogNot(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActLogOr(_parser: TLCGParser): TLCGParserStackEntry;
@@ -248,15 +252,16 @@ const CodeTable: array[TOpCode,TAddrMode] of integer = (
       3,       // ADM_ABSY
       1,       // ADM_IMPL
       3,       // ADM_IND
-      3,       // ADM_INDY
+      2,       // ADM_INDY
       2,       // ADM_LIT
       2,       // ADM_REL
-      3,       // ADM_XIND
+      2,       // ADM_XIND
       2,       // ADM_ZPG
       2,       // ADM_ZPGX
       2,       // ADM_ZPGY
       1        // ADM_ACC
     );
+
 
 { TAssembler }
 
@@ -291,6 +296,11 @@ begin
   FFileStack.Free;
   FSymbols.Free;
   inherited Destroy;
+end;
+
+function TAssembler.ActBinLiteral(_parser: TLCGParser): TLCGParserStackEntry;
+begin
+  Result.Buf := VariableFromBinLiteral(_parser.ParserStack[_parser.ParserSP-1].Buf);
 end;
 
 function TAssembler.ActCompEQ(_parser: TLCGParser): TLCGParserStackEntry;
@@ -489,6 +499,24 @@ begin
   SetLength(FOutputArr,FBytesFromLine);
   for i := 1 to Length(s) do
     FOutputArr[i-1] := Ord(s[i]);
+  FOutput.Write(FOutputArr,FOrg,FBytesFromLine);
+end;
+
+function TAssembler.ActDirDSH(_parser: TLCGParser): TLCGParserStackEntry;
+var i:   integer;
+    s:   string;
+begin
+  Result.Buf := '';
+  if not ProcessingAllowed then
+    Exit;
+  s := _parser.ParserStack[_parser.ParserSP-1].Buf;
+  FBytesFromLine := Length(s);
+  SetLength(FOutputArr,FBytesFromLine);
+  for i := 1 to Length(s) do
+    if i = Length(s) then
+      FOutputArr[i-1] := Ord(s[i]) or $80
+    else
+      FOutputArr[i-1] := Ord(s[i]);
   FOutput.Write(FOutputArr,FOrg,FBytesFromLine);
 end;
 
@@ -902,7 +930,7 @@ begin
   // There are 13 address modes, we will have identified from a range of 9 so
   // far. Need to expand out to the missing four if possible (zpg / zpg,x /
   // zpg,y / rel)
-  if (FAddrMode = ADM_ABS) and (FAddr < $100) then
+  if (FAddrMode = ADM_ABS) and (FAddr < $100) and (FOpCode <> OPC_JMP) then
     FAddrMode := ADM_ZPG;
   if (FAddrMode = ADM_ABSX) and (FAddr < $100) then
     FAddrMode := ADM_ZPGX;
@@ -918,7 +946,7 @@ begin
     end;
   // Check that we have a valid instruction
   if CodeTable[FOpCode][FAddrMode] < 0 then
-    Monitor(ltError,'Illegal opcode and operand combination');
+    Monitor(ltError,'Illegal opcode and operand combination %s / %s',[OpcodeText[FOpCode],AddrModeText[FAddrMode]]);
   instr := CodeTable[FOpCode][FAddrMode];
   // @@@@@ Code here to write out instruction data
   if ProcessingAllowed then
@@ -940,6 +968,21 @@ begin
   Result.Buf := '';
   if not ProcessingAllowed then
     Exit;
+  symbolname := _parser.ParserStack[_parser.ParserSP-1].Buf;
+  expression := IntToStr(FOrg);
+  msg := FSymbols.Define(FPass,symbolname,expression);
+  if msg <> '' then
+    Monitor(ltError,msg);
+end;
+
+function TAssembler.ActLabelC(_parser: TLCGParser): TLCGParserStackEntry;
+var symbolname: string;
+    expression: string;
+    msg:        string;
+begin
+  Result.Buf := '';
+  if not ProcessingAllowed then
+    Exit;
   symbolname := _parser.ParserStack[_parser.ParserSP-2].Buf;
   expression := IntToStr(FOrg);
   msg := FSymbols.Define(FPass,symbolname,expression);
@@ -948,6 +991,21 @@ begin
 end;
 
 function TAssembler.ActLabelLocal(_parser: TLCGParser): TLCGParserStackEntry;
+var symbolname: string;
+    expression: string;
+    msg:        string;
+begin
+  Result.Buf := '';
+  if not ProcessingAllowed then
+    Exit;
+  symbolname := FLocalPrefix + _parser.ParserStack[_parser.ParserSP-1].Buf;
+  expression := IntToStr(FOrg);
+  msg := FSymbols.Define(FPass,symbolname,expression);
+  if msg <> '' then
+    Monitor(ltError,msg);
+end;
+
+function TAssembler.ActLabelLocalC(_parser: TLCGParser): TLCGParserStackEntry;
 var symbolname: string;
     expression: string;
     msg:        string;
@@ -1487,6 +1545,8 @@ end;
 procedure TAssembler.ProcessLine(const _line: string);
 var strm: TStringStream;
 begin
+  if (Length(_line) > 0) and (_line[1] = '*') then
+    Exit; // Comment line
   strm := TStringStream.Create(_line);
   try
     Parse(strm);
@@ -1523,6 +1583,7 @@ procedure TAssembler.RegisterProcs;
 var _procs: TStringArray;
 begin
   _procs := RuleProcs;
+  RegisterProc('ActBinLiteral',     @ActBinLiteral, _procs);
   RegisterProc('ActCopy1',          @ActCopy1, _procs);
   RegisterProc('ActCompEQ',         @ActCompEQ, _procs);
   RegisterProc('ActCompGE',         @ActCompGE, _procs);
@@ -1538,6 +1599,7 @@ begin
   RegisterProc('ActDirDefineExpr',  @ActDirDefineExpr, _procs);
   RegisterProc('ActDirDefmacro',    @ActDirDefmacro, _procs);
   RegisterProc('ActDirDS',          @ActDirDS, _procs);
+  RegisterProc('ActDirDSH',         @ActDirDSH, _procs);
   RegisterProc('ActDirDSZ',         @ActDirDSZ, _procs);
   RegisterProc('ActDirDW',          @ActDirDW, _procs);
   RegisterProc('ActDirElse',        @ActDirElse, _procs);
@@ -1582,7 +1644,9 @@ begin
   RegisterProc('ActIgnore',         @ActIgnore, _procs);
   RegisterProc('ActInstruction',    @ActInstruction, _procs);
   RegisterProc('ActLabel',          @ActLabel, _procs);
+  RegisterProc('ActLabelC',         @ActLabelC, _procs);
   RegisterProc('ActLabelLocal',     @ActLabelLocal, _procs);
+  RegisterProc('ActLabelLocalC',    @ActLabelLocalC, _procs);
   RegisterProc('ActLogAnd',         @ActLogAnd, _procs);
   RegisterProc('ActLogNot',         @ActLogNot, _procs);
   RegisterProc('ActLogOr',          @ActLogOr, _procs);

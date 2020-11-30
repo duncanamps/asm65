@@ -17,3 +17,5 @@ tools/
 *.dbg
 asm65
 profile.ini
+*.exe
+backup/

@@ -36,7 +36,9 @@
 {Backslash}     = [\x5c];
 {Escaped}       = [\x5c\x22tnr];
 {DQuote}		= [\x22];
-{CommentChar}	= {Printable} - {DQuote} - {Backslash} + {Tab};
+{StringChar}	= {Printable} - {DQuote} - {Backslash} + {Tab};
+{CommentChar}	= {Printable} + {Tab};
+{NonCurlyChar}	= {Printable} + {Tab} - [}];
 
 {SymbolStart}	= {Letter} + [_];
 {SymbolMid}		= {SymbolStart} + {Digit};                                    
@@ -140,7 +142,7 @@ Assignment			= "=" symbol;
 Accum				= MIXED("A")			keyword;
 ComX				= MIXED(",X")			keyword;
 ComY				= MIXED(",Y")			keyword;
-List				= MIXED("LIST")			keyword;
+Force				= MIXED("FORCE")		keyword;
 F_ASC				= MIXED("ASC(")			keyword;
 F_BUILD				= MIXED("BUILD()")		keyword;
 F_CHR				= MIXED("CHR(")			keyword;
@@ -166,11 +168,14 @@ K_DD				= MIXED(".DD")			keyword;
 K_DEFINE			= MIXED(".DEFINE")		keyword;
 K_DEFMACRO			= MIXED(".DEFMACRO")	keyword;
 K_DS				= MIXED(".DS")			keyword;
+K_DSH				= MIXED(".DSH")			keyword;
 K_DSZ				= MIXED(".DSZ")			keyword;
 K_DW				= MIXED(".DW")			keyword;
 K_ELSE				= MIXED(".ELSE")		keyword;
 K_ENDIF				= MIXED(".ENDIF")		keyword;
 K_ENDM				= MIXED(".ENDM")		keyword;
+K_EQ				= MIXED(".EQ")			keyword;
+K_EQU				= MIXED(".EQU")			keyword;
 K_ERROR				= MIXED(".ERROR")		keyword;
 K_IF				= MIXED(".IF")			keyword;
 K_IFDEF				= MIXED(".IFDEF")		keyword;
@@ -187,7 +192,7 @@ K_WARNING			= MIXED(".WARNING")		keyword;
 
 LocalAddress		= "@" {SymbolStart}{SymbolMid}*;
 MacroPlaceholder	= "@"{Digit};
-StringConstant		= {DQuote} ({CommentChar} | {Backslash} {Escaped})* {DQuote};                 
+StringConstant		= {DQuote} ({StringChar} | {Backslash} {Escaped})* {DQuote};                 
 SymbolDef			= {SymbolStart}{SymbolMid}*;   
 Whitespace			= {Whitespace}+ ignore;                 
                  
@@ -197,9 +202,9 @@ Whitespace			= {Whitespace}+ ignore;
 // Lexical groups
 //
 
-LineComment1      = ";" {CommentChar}* ignore;           
-LineComment2      = "//" {CommentChar}* ignore;           
-              
+LineComment1		= ";" {CommentChar}* ignore;           
+LineComment2		= "//" {CommentChar}* ignore; 
+InternalComment1	= "{" {NonCurlyChar}* "}" ignore;
 
 
 //
@@ -221,16 +226,19 @@ LineComment2      = "//" {CommentChar}* ignore;
 					| K_DEFINE   SymbolDef Assignment <expression>	# ActDirDefineExpr
 					| K_DEFMACRO SymbolDef							# ActDirDefmacro
 					| K_DS       <string expr>						# ActDirDS
+					| K_DSH		 <string expr>						# ActDirDSH
 					| K_DSZ      <string expr>						# ActDirDSZ
 					| K_DW       <expression list>					# ActDirDW
 					| K_ELSE										# ActDirElse
 					| K_ENDIF										# ActDirEndif
 					| K_ENDM										# ActDirEndm
+					| 			 SymbolDef K_EQ <expression>		# ActDirDefineExpr
+					| 			 SymbolDef K_EQU <expression>		# ActDirDefineExpr
 					| K_ERROR    <string expr>						# ActDirError
 					| K_IF		 <expression>						# ActDirIf
 					| K_IFDEF    SymbolDef							# ActDirIfdef
 					| K_IFNDEF   SymbolDef							# ActDirIfndef
-					| K_INCLUDE  List <string expr>					# ActDirIncludeList
+					| K_INCLUDE  Force <string expr>				# ActDirIncludeList
 					| K_INCLUDE  <string expr>						# ActDirInclude
 					| K_LIST										# ActDirList
 					| K_MACRO	 SymbolDef <expression list>		# ActDirMacro
@@ -243,8 +251,10 @@ LineComment2      = "//" {CommentChar}* ignore;
 					| K_WARNING  <string expr>						# ActDirWarning
 					;
 
-<label>	: LocalAddress ":"											# ActLabelLocal
-		| SymbolDef ":"												# ActLabel
+<label>	: LocalAddress												# ActLabelLocal
+		| LocalAddress ":"											# ActLabelLocalC
+		| SymbolDef													# ActLabel
+		| SymbolDef ":"												# ActLabelC
 		;
 
 <instruction> : OPCODE <Operand>									# ActInstruction

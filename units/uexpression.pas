@@ -11,6 +11,7 @@ uses
 
 function StripQuotes(const _s: string): string;
 function StripQuotesAndEscaped(const _s: string): string;
+function VariableFromBinLiteral(const _s: string): string;
 function VariableFromHexLiteral(const _s: string): string;
 function VariableFromOctLiteral(const _s: string): string;
 
@@ -39,6 +40,18 @@ begin
   Result := StringReplace(Result,'\t',#9, [rfReplaceAll]);
   Result := StringReplace(Result,'\n',#10,[rfReplaceAll]);
   Result := StringReplace(Result,'\r',#13,[rfReplaceAll]);
+end;
+
+function VariableFromBinLiteral(const _s: string): string;
+var decval: int64;
+    i:      integer;
+begin
+  decval := 0;
+  if Length(_s) < 2 then
+    raise Exception.Create('BinLiteral is too short');
+  for i := 3 to Length(_s) do
+    decval := decval * 2 + (Ord(_s[i])-Ord('0'));
+  Result := IntToStr(decval);
 end;
 
 function VariableFromHexLiteral(const _s: string): string;

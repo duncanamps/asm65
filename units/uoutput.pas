@@ -94,7 +94,7 @@ var addr: UINT16;
 begin
   if _filename = '' then
     Exit;
-  size := Highest-Lowest;
+  size := Highest-Lowest+1;
   addr := Lowest;
   strm := TFileStream.Create(_filename,fmCreate,fmShareDenyWrite);
   try

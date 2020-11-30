@@ -163,7 +163,7 @@ begin
       3: asm65.LogLevel := ltDebug;
     end;
     basename := StringReplace(asm65.FilenameSrc,ExtractFileExt(asm65.FilenameSrc),'',[rfReplaceAll]);
-    ProcessFilename(basename,asm65.FilenameHex,'h','hex',     '.hex');
+    ProcessFilename(basename,asm65.FilenameHex,'x','hex',     '.hex');
     ProcessFilename(basename,asm65.FilenameLst,'l','listing', '.lst');
     ProcessFilename(basename,asm65.FilenameLog,'e','errorlog','.log');
     ProcessFilename(basename,asm65.FilenameMap,'m','map',     '.map');
