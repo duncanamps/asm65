@@ -934,7 +934,7 @@ begin
     FAddrMode := ADM_ZPG;
   if (FAddrMode = ADM_ABSX) and (FAddr < $100) then
     FAddrMode := ADM_ZPGX;
-  if (FAddrMode = ADM_ABSY) and (FAddr < $100) then
+  if (FAddrMode = ADM_ABSY) and (FAddr < $100) and (FOpCode in [OPC_STX,OPC_LDX]) then
     FAddrMode := ADM_ZPGY;
   if (FOpCode in [OPC_BCC,OPC_BCS,OPC_BEQ,OPC_BMI,OPC_BNE,OPC_BPL,OPC_BVC,OPC_BVS]) then
     begin
