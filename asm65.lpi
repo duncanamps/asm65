@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
-    <Version Value="11"/>
+    <Version Value="12"/>
     <PathDelim Value="\"/>
     <General>
       <Flags>
         <MainUnitHasCreateFormStatements Value="False"/>
+        <MainUnitHasTitleStatement Value="False"/>
         <MainUnitHasScaledStatement Value="False"/>
+        <CompatibilityMode Value="True"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <MainUnit Value="0"/>
       <Title Value="6502 Macro Assembler"/>
       <ResourceType Value="res"/>
       <Resources Count="1">
@@ -20,8 +21,8 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
-      <BuildNr Value="5"/>
-      <StringTable LegalCopyright="Copyright (C)2020 Duncan Munro" ProductName="6502 Macro Assembler" ProductVersion="0.1"/>
+      <BuildNr Value="6"/>
+      <StringTable LegalCopyright="Copyright (C)2020-2021 Duncan Munro" ProductName="6502 Macro Assembler" ProductVersion="0.1"/>
     </VersionInfo>
     <BuildModes Count="4">
       <Item1 Name="Debug" Default="True"/>
@@ -34,7 +35,7 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value="units;..\..\..\lacogen\lac\core"/>
+            <OtherUnitFiles Value="units;..\..\..\lacogen1\lac\core"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -46,6 +47,7 @@
           <Linking>
             <Debugging>
               <GenerateDebugInfo Value="False"/>
+              <DebugInfoType Value="dsDwarf3"/>
             </Debugging>
             <LinkSmart Value="True"/>
           </Linking>
@@ -70,7 +72,7 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value="units;..\..\..\lacogen\lac\core"/>
+            <OtherUnitFiles Value="units;..\..\..\lacogen1\lac\core"/>
             <UnitOutputDirectory Value="lib\debug_$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -108,7 +110,7 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value="units"/>
+            <OtherUnitFiles Value="units;..\..\..\lacogen1\lac\core"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -132,7 +134,6 @@
     </PublishOptions>
     <RunParams>
       <FormatVersion Value="2"/>
-      <Modes Count="0"/>
     </RunParams>
     <Units Count="12">
       <Unit0>
@@ -144,43 +145,43 @@
         <IsPartOfProject Value="True"/>
       </Unit1>
       <Unit2>
-        <Filename Value="..\..\..\lacogen\lac\core\deployment_parser_module.pas"/>
+        <Filename Value="units\usymbol.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit2>
       <Unit3>
-        <Filename Value="..\..\..\lacogen\lac\core\deployment_parser_types.pas"/>
+        <Filename Value="units\uutility.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit3>
       <Unit4>
-        <Filename Value="units\usymbol.pas"/>
+        <Filename Value="units\uassembler.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit4>
       <Unit5>
-        <Filename Value="units\uutility.pas"/>
+        <Filename Value="units\ufilestack.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit5>
       <Unit6>
-        <Filename Value="units\uassembler.pas"/>
+        <Filename Value="units\uexpression.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit6>
       <Unit7>
-        <Filename Value="units\ufilestack.pas"/>
+        <Filename Value="units\uoutput.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit7>
       <Unit8>
-        <Filename Value="units\uexpression.pas"/>
+        <Filename Value="units\uifstack.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit8>
       <Unit9>
-        <Filename Value="units\uoutput.pas"/>
+        <Filename Value="units\umacro.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit9>
       <Unit10>
-        <Filename Value="units\uifstack.pas"/>
+        <Filename Value="..\..\..\lacogen1\lac\core\deployment_parser_module.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit10>
       <Unit11>
-        <Filename Value="units\umacro.pas"/>
+        <Filename Value="..\..\..\lacogen1\lac\core\deployment_parser_types.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit11>
     </Units>
@@ -193,7 +194,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="units;..\..\..\lacogen\lac\core"/>
+      <OtherUnitFiles Value="units;..\..\..\lacogen1\lac\core"/>
       <UnitOutputDirectory Value="lib\debug_$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>

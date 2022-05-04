@@ -7,8 +7,8 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   Classes, SysUtils, CustApp, fileinfo, usymbol, uutility, uassembler,
-  deployment_parser_module, deployment_parser_types, ufilestack, uexpression,
-  uoutput, uifstack, umacro;
+  ufilestack, uexpression,
+  uoutput, uifstack, umacro, deployment_parser_types, deployment_parser_module;
 
 const
   DEFAULT_TAB_VALUE = 4;
@@ -269,7 +269,7 @@ begin
     FileVerInfo.ReadFileInfo;
     WriteLn('');
     WriteLn('6502 Macro Assembler V' + FileVerInfo.VersionStrings.Values['ProductVersion']);
-    WriteLn('Copyright (C)2020 Duncan Munro');
+    WriteLn('Copyright (C)2020-' + FormatDateTime('YYYY',Now) + ' Duncan Munro');
     WriteLn('');
   finally
     FileVerInfo.Free;

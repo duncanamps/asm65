@@ -16,6 +16,7 @@ type
     private
       FAddr:           UINT16;
       FAddrMode:       TAddrMode;
+      FAssemblyEnd:    TDateTime;
       FAssemblyStart:  TDateTime;
       FBytesFromLine:  integer;
       FBytesTotal:     integer;
@@ -34,6 +35,7 @@ type
       FLocalPrefix:    string;
       FMacroCapture:   TStringList;
       FMacroName:      string;
+      FMacroNestLevel: integer;
       FMacroList:      TMacroList;
       FOutput:         TOutput;
       FOutputArr:      TOutputSequence;
@@ -61,6 +63,7 @@ type
       function  ActDirDD(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDefine(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDefineExpr(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActDirDefineString(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDefmacro(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDS(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActDirDSH(_parser: TLCGParser): TLCGParserStackEntry;
@@ -132,6 +135,7 @@ type
       function  ActStrHex1(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActStrHex2(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActStringConstant(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActStringSymbol(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActStrLeft(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActStrLower(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActStrMid(_parser: TLCGParser): TLCGParserStackEntry;
@@ -467,11 +471,25 @@ begin
     Exit;
   symbolname := _parser.ParserStack[_parser.ParserSP-3].Buf;
   expression := _parser.ParserStack[_parser.ParserSP-1].Buf;
-  message := FSymbols.Define(FPass,symbolname,expression);
+  message := FSymbols.Define(FPass,False,symbolname,expression);
   if message <> '' then
     Monitor(ltError,message);
 end;
 
+function TAssembler.ActDirDefineString(_parser: TLCGParser): TLCGParserStackEntry;
+var symbolname: string;
+    expression: string;
+    message:    string;
+begin
+  Result.Buf := '';
+  if not ProcessingAllowed then
+    Exit;
+  symbolname := _parser.ParserStack[_parser.ParserSP-3].Buf;
+  expression := _parser.ParserStack[_parser.ParserSP-1].Buf;
+  message := FSymbols.Define(FPass,True,symbolname,expression);
+  if message <> '' then
+    Monitor(ltError,message);
+end;
 function TAssembler.ActDirDefmacro(_parser: TLCGParser): TLCGParserStackEntry;
 begin
   Result.Buf := '';
@@ -737,7 +755,7 @@ begin
     Exit;
   symbolname := _parser.ParserStack[_parser.ParserSP-3].Buf;
   expression := _parser.ParserStack[_parser.ParserSP-1].Buf;
-  message := FSymbols.Define(FPass,symbolname,expression,true);
+  message := FSymbols.Define(FPass,False,symbolname,expression,true);
   if message <> '' then
     Monitor(ltError,message);
 end;
@@ -970,7 +988,7 @@ begin
     Exit;
   symbolname := _parser.ParserStack[_parser.ParserSP-1].Buf;
   expression := IntToStr(FOrg);
-  msg := FSymbols.Define(FPass,symbolname,expression);
+  msg := FSymbols.Define(FPass,False,symbolname,expression);
   if msg <> '' then
     Monitor(ltError,msg);
 end;
@@ -985,7 +1003,7 @@ begin
     Exit;
   symbolname := _parser.ParserStack[_parser.ParserSP-2].Buf;
   expression := IntToStr(FOrg);
-  msg := FSymbols.Define(FPass,symbolname,expression);
+  msg := FSymbols.Define(FPass,False,symbolname,expression);
   if msg <> '' then
     Monitor(ltError,msg);
 end;
@@ -1000,7 +1018,7 @@ begin
     Exit;
   symbolname := FLocalPrefix + _parser.ParserStack[_parser.ParserSP-1].Buf;
   expression := IntToStr(FOrg);
-  msg := FSymbols.Define(FPass,symbolname,expression);
+  msg := FSymbols.Define(FPass,False,symbolname,expression);
   if msg <> '' then
     Monitor(ltError,msg);
 end;
@@ -1015,7 +1033,7 @@ begin
     Exit;
   symbolname := FLocalPrefix + _parser.ParserStack[_parser.ParserSP-2].Buf;
   expression := IntToStr(FOrg);
-  msg := FSymbols.Define(FPass,symbolname,expression);
+  msg := FSymbols.Define(FPass,False,symbolname,expression);
   if msg <> '' then
     Monitor(ltError,msg);
 end;
@@ -1172,6 +1190,11 @@ begin
   Result.Buf := StripQuotesAndEscaped(_parser.ParserStack[_parser.ParserSP-1].Buf);
 end;
 
+function TAssembler.ActStringSymbol(_parser: TLCGParser): TLCGParserStackEntry;
+begin
+  Result.Buf := FSymbols.Variable(FPass,_parser.ParserStack[_parser.ParserSP-1].Buf,'');
+end;
+
 function TAssembler.ActStrLeft(_parser: TLCGParser): TLCGParserStackEntry;
 var len: integer;
 begin
@@ -1233,15 +1256,16 @@ begin
   if not ProcessingAllowed then
     Result.Buf := IntToStr(FOrg)
   else
-    Result.Buf := FSymbols.Variable(FPass,FLocalPrefix+_parser.ParserStack[_parser.ParserSP-1].Buf,FOrg);
+    Result.Buf := FSymbols.Variable(FPass,FLocalPrefix+_parser.ParserStack[_parser.ParserSP-1].Buf,IntToStr(FOrg));
 end;
 
 function TAssembler.ActValueSymbol(_parser: TLCGParser): TLCGParserStackEntry;
 begin
-  Result.Buf := FSymbols.Variable(FPass,_parser.ParserStack[_parser.ParserSP-1].Buf,FOrg);
+  Result.Buf := FSymbols.Variable(FPass,_parser.ParserStack[_parser.ParserSP-1].Buf,IntToStr(FOrg));
 end;
 
 procedure TAssembler.Assemble;
+var elapsed: double;
 begin
   FilesOpen;
   FAssemblyStart := Now;
@@ -1260,7 +1284,9 @@ begin
       end;
   finally
     Monitor(ltInfo,'%d lines assembled, %d bytes generated',[FLineCount, FBytesTotal]);
-    Monitor(ltVerbose,'Assembly ended %s',[FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz',Now)]);
+    FAssemblyEnd := Now;
+    Monitor(ltVerbose,'Assembly ended %s',[FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz',FAssemblyEnd)]);
+    Monitor(ltVerbose,'Total assembly time %.3f seconds',[(FAssemblyEnd-FAssemblyStart)*86400.0]);
     FilesClose;
   end;
 end;
@@ -1322,6 +1348,7 @@ begin
   FListNext := True;
   FMacroList.Clear;
   FMacroList.Init;
+  FMacroNestLevel := 0;
   FOrg := $0200;
   FOutput.Clear;
   // Now add the predefined symbols if present on the command line
@@ -1406,6 +1433,8 @@ end;
 procedure TAssembler.OutputListingLine(const _asmline: string);
 const MAX_BYTES_PER_ROW = 4;
       HEX_WIDTH = MAX_BYTES_PER_ROW * 3 + 7;
+      MAX_MACRO_INDENTS = 3;
+{$DEFINE SHORTEN_OVERSPILL}
 var byteindex: integer;
     bytesleft: integer;
     bcount:    integer;
@@ -1417,7 +1446,7 @@ begin
      (not FFileStack.IsListing) then
     Exit;
   if FBytesFromLine = 0 then
-    FListing.Add(StringOfChar(' ',HEX_WIDTH) + _asmline)
+    FListing.Add(StringOfChar(' ',HEX_WIDTH+MAX_MACRO_INDENTS) + _asmline)
   else
     begin
       byteindex := 0;
@@ -1429,10 +1458,24 @@ begin
       s := Format('%4.4X:',[byteindex+FOrg]);
       for i := 0 to bcount-1 do
         s := s + Format(' %2.2X',[FOutputArr[i+byteindex]]);
+{$IFDEF SHORTEN_OVERSPILL}
+      if bytesleft > 0 then
+        s := s + '+';
+{$ENDIF}
       s := PadRight(s,HEX_WIDTH);
+      if FMacroNestLevel > MAX_MACRO_INDENTS then
+        s := s + '>' + StringOfChar('.',MAX_MACRO_INDENTS-2) + '>'
+      else if FMacroNestLevel = 0 then
+        s := s + Space(MAX_MACRO_INDENTS)
+      else
+        begin
+          s := s + StringOfChar('>',FMacroNestLevel);
+          s := s + StringOfChar(' ',MAX_MACRO_INDENTS-FMacroNestLevel);
+        end;
       s := s + _asmline;
       FListing.Add(s);
       byteindex := byteindex + bcount;
+{$IFNDEF SHORTEN_OVERSPILL}
       // Do any overspill lines if required
       while bytesleft > 0 do
         begin
@@ -1446,6 +1489,7 @@ begin
           FListing.Add(s);
           byteindex := byteindex + bcount;
         end;
+{$ENDIF}
     end;
 end;
 
@@ -1520,6 +1564,7 @@ begin
   if index < 0 then
     Monitor(ltError,'Macro %s is not defined',[FProcessMacro]);
   parms := TStringList.Create;
+  Inc(FMacroNestLevel);
   try
     savedprefix := FLocalPrefix;
     FLocalPrefix := FMacroList.LocalPrefix;
@@ -1534,6 +1579,7 @@ begin
     FLocalPrefix := savedprefix;
   finally
     parms.Free;
+    Dec(FMacroNestLevel);
   end;
 end;
 
@@ -1597,6 +1643,7 @@ begin
   RegisterProc('ActDirDD',          @ActDirDD, _procs);
   RegisterProc('ActDirDefine',      @ActDirDefine, _procs);
   RegisterProc('ActDirDefineExpr',  @ActDirDefineExpr, _procs);
+  RegisterProc('ActDirDefineString',@ActDirDefineString, _procs);
   RegisterProc('ActDirDefmacro',    @ActDirDefmacro, _procs);
   RegisterProc('ActDirDS',          @ActDirDS, _procs);
   RegisterProc('ActDirDSH',         @ActDirDSH, _procs);
@@ -1668,6 +1715,7 @@ begin
   RegisterProc('ActStrHex1',        @ActStrHex1, _procs);
   RegisterProc('ActStrHex2',        @ActStrHex2, _procs);
   RegisterProc('ActStringConstant', @ActStringConstant, _procs);
+  RegisterProc('ActStringSymbol',   @ActStringSymbol, _procs);
   RegisterProc('ActStrLeft',        @ActStrLeft, _procs);
   RegisterProc('ActStrLower',       @ActStrLower, _procs);
   RegisterProc('ActStrMid',         @ActStrMid, _procs);

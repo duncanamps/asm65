@@ -24,12 +24,16 @@ const
 
 type
 
+  TSymType = (stInteger16,stString);
+
   TSymbolEntry = record
     SymName:     string;      // Symbol name
+    SymType:     TSymType;    // Symbol type
     SymPass:     integer;     // Pass defined in (1 or 2)
     SymHasValue: boolean;     // True if a number value is associate with symbol
     SymUsed:     boolean;     // True if the symbol has been reference
     SymValue:    uint16;      // Value
+    SymValueS:   string;      // Value of string
     class operator = (se1, se2: TSymbolEntry): boolean;
   end;
 
@@ -46,7 +50,7 @@ type
       constructor Create;
       destructor Destroy; override;
       function  Define(_pass: integer; const _name: string): string;
-      function  Define(_pass: integer; const _name: string; const _variable: string; _overwrite: boolean = False): string;
+      function  Define(_pass: integer; _isstring: boolean; const _name: string; const _variable: string; _overwrite: boolean = False): string;
       procedure Dump(_sl: TStringList);
       function  IndexOf(_key: string): integer;
       function  Exists(_name: string): boolean;
@@ -56,7 +60,7 @@ type
       procedure SortByAddr;
       procedure SortByName;
       function  Undefine(const _name: string): string;
-      function  Variable(_pass: integer; _name: string; _default: UINT16): string;
+      function  Variable(_pass: integer; _name: string; _default: string): string;
   end;
 
 
@@ -209,7 +213,7 @@ begin
   end; // Case
 end;
 
-function TSymbolTable.Define(_pass: integer; const _name: string; const _variable: string; _overwrite: boolean = False): string;
+function TSymbolTable.Define(_pass: integer; _isstring: boolean; const _name: string; const _variable: string; _overwrite: boolean = False): string;
 var entry: TSymbolEntry;
     index: integer;
 begin
@@ -226,7 +230,18 @@ begin
                   entry := Items[index];
                   entry.SymPass     := _pass;
                   entry.SymHasValue := True;
-                  entry.SymValue := StrToInt(_variable);
+                  if _isstring then
+                    begin
+                      entry.SymType := stString;
+                      entry.SymValue  := 0;
+                      entry.SymValueS := _variable;
+                    end
+                  else
+                    begin
+                      entry.SymType := stInteger16;
+                      entry.SymValue := StrToInt(_variable);
+                      entry.SymValueS := '';
+                    end;
                   Items[index] := entry;
                 end;
             end
@@ -236,7 +251,18 @@ begin
               entry.SymPass     := _pass;
               entry.SymHasValue := True;
               entry.SymUsed     := False;
-              entry.SymValue    := StrToInt(_variable);
+              if _isstring then
+                begin
+                  entry.SymType := stString;
+                  entry.SymValue  := 0;
+                  entry.SymValueS := _variable;
+                end
+              else
+                begin
+                  entry.SymType := stInteger16;
+                  entry.SymValue := StrToInt(_variable);
+                  entry.SymValueS := '';
+                end;
               AddHash(_name,Add(entry));
               CheckHashSize;
             end;
@@ -248,7 +274,18 @@ begin
               entry := Items[index];
               entry.SymPass := _pass;
               entry.SymHasValue := True;
-              entry.SymValue    := StrToInt(_variable);
+              if _isstring then
+                begin
+                  entry.SymType := stString;
+                  entry.SymValue  := 0;
+                  entry.SymValueS := _variable;
+                end
+              else
+                begin
+                  entry.SymType := stInteger16;
+                  entry.SymValue := StrToInt(_variable);
+                  entry.SymValueS := '';
+                end;
               Items[index] := entry;
             end
           else
@@ -257,7 +294,18 @@ begin
               entry.SymPass     := _pass;
               entry.SymHasValue := True;
               entry.SymUsed     := False;
-              entry.SymValue    := StrToInt(_variable);
+              if _isstring then
+                begin
+                  entry.SymType := stString;
+                  entry.SymValue  := 0;
+                  entry.SymValueS := _variable;
+                end
+              else
+                begin
+                  entry.SymType := stInteger16;
+                  entry.SymValue := StrToInt(_variable);
+                  entry.SymValueS := '';
+                end;
               AddHash(_name,Add(entry));
               CheckHashSize;
             end;
@@ -369,7 +417,7 @@ begin
     end;
 end;
 
-function TSymbolTable.Variable(_pass: integer; _name: string; _default: UINT16): string;
+function TSymbolTable.Variable(_pass: integer; _name: string; _default: string): string;
 var i: integer;
 begin
   Result := '';
@@ -382,14 +430,24 @@ begin
   case _pass of
     1:  begin
           if i < 0 then
-            Result := IntToStr(_default)
+            result := _default
           else
-            Result := IntToStr(Items[i].SymValue);
+            case Items[i].SymType of
+              stString:    Result := Items[i].SymValueS;
+              stInteger16: Result := IntToStr(Items[i].SymValue);
+              otherwise
+                raise Exception.Create(Format('Variable type not catered for in lookup of %s',[_Name]));
+            end; // case
         end;
     2:  begin
           if i < 0 then
             raise Exception.Create('Symbol ' + _name + ' not found');
-          Result := IntToStr(Items[i].SymValue);
+          case Items[i].SymType of
+            stString:    Result := Items[i].SymValueS;
+            stInteger16: Result := IntToStr(Items[i].SymValue);
+            otherwise
+              raise Exception.Create(Format('Variable type not catered for in lookup of %s',[_Name]));
+          end; // case
         end;
   end;
 end;

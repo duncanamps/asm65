@@ -22,14 +22,19 @@ uses
 
 
 function StripQuotes(const _s: string): string;
+var l: integer;
 begin
   Result := _s;
-  if Length(Result) < 2 then
-    raise Exception.Create('Trying to strip quotes from string which is too short ' + _s);
-  if (_s[1] <> Chr(34)) or
-     (_s[Length(_s)] <> Chr(34)) then
-    raise Exception.Create('Trying to strip quotes which are not present ' + _s);
-  Result := Copy(_s,2,Length(_s)-2);
+  l := Length(_s);
+  if (l > 0) and (LeftStr(_s,1) = CHR(34)) then
+    begin
+      if l < 2 then
+        raise Exception.Create('Trying to strip quotes from string which is too short ' + _s);
+      if (LeftStr(_s,1) <> Chr(34)) or
+         (RightStr(_s,1) <> Chr(34)) then
+        raise Exception.Create('Trying to strip quotes which are not present ' + _s);
+      Result := Copy(_s,2,Length(_s)-2);
+    end;
 end;
 
 function StripQuotesAndEscaped(const _s: string): string;
