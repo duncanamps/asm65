@@ -41,6 +41,7 @@ type
     private
       FHashTable: array of integer;
       FHashSize:  integer;
+      FIfAllowed: boolean;
       procedure AddHash(_name: string; _recno: integer);
       function  CalcHash(_name: string): integer;
       procedure CheckHashSize;
@@ -61,6 +62,8 @@ type
       procedure SortByName;
       function  Undefine(const _name: string): string;
       function  Variable(_pass: integer; _name: string; _default: string): string;
+    published
+      property IfAllowed: boolean read FIfAllowed write FIfAllowed;
   end;
 
 
@@ -441,13 +444,14 @@ begin
         end;
     2:  begin
           if i < 0 then
-            raise Exception.Create('Symbol ' + _name + ' not found');
-          case Items[i].SymType of
-            stString:    Result := Items[i].SymValueS;
-            stInteger16: Result := IntToStr(Items[i].SymValue);
-            otherwise
-              raise Exception.Create(Format('Variable type not catered for in lookup of %s',[_Name]));
-          end; // case
+            raise Exception.Create('Symbol ' + _name + ' not found')
+          else
+            case Items[i].SymType of
+              stString:    Result := Items[i].SymValueS;
+              stInteger16: Result := IntToStr(Items[i].SymValue);
+              otherwise
+                raise Exception.Create(Format('Variable type not catered for in lookup of %s',[_Name]));
+            end; // case
         end;
   end;
 end;

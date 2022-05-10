@@ -6,7 +6,7 @@ unit uassembler;
 interface
 
 uses
-  Classes, SysUtils, deployment_parser_module, deployment_parser_types,
+  Classes, SysUtils, deployment_parser_module_12, deployment_parser_types_12,
   ufilestack, usymbol, uasmglobals, uoutput, uifstack, umacro;
 
 

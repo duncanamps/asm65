@@ -6,7 +6,7 @@ unit uifstack;
 interface
 
 uses
-  Classes, SysUtils, fgl, deployment_parser_module, deployment_parser_types;
+  Classes, SysUtils, fgl, deployment_parser_module_12, deployment_parser_types_12;
 
 type
 

@@ -177,11 +177,11 @@
         <IsPartOfProject Value="True"/>
       </Unit9>
       <Unit10>
-        <Filename Value="..\..\..\lacogen1\lac\core\deployment_parser_module.pas"/>
+        <Filename Value="..\..\..\lacogen1\lac\core\deployment_parser_module_12.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit10>
       <Unit11>
-        <Filename Value="..\..\..\lacogen1\lac\core\deployment_parser_types.pas"/>
+        <Filename Value="..\..\..\lacogen1\lac\core\deployment_parser_types_12.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit11>
     </Units>
