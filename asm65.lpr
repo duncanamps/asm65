@@ -7,14 +7,15 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   Classes, SysUtils, CustApp, fileinfo, usymbol, uutility, uassembler,
-  ufilestack, uexpression,
-  uoutput, uifstack, umacro, deployment_parser_types_12, deployment_parser_module_12;
+  ufilestack, uexpression, uoutput, uifstack, umacro,
+  deployment_parser_types_12, deployment_parser_module_12, udebuglist;
 
 const
   DEFAULT_TAB_VALUE = 4;
-  SHORT_OPTIONS = 'd:e::hI:l::m::o:t:v:Vx::';
-  LONG_OPTIONS: array [1..11] of string =
+  SHORT_OPTIONS = 'b::d:e::hI:l::m::o:t:v:Vx::';
+  LONG_OPTIONS: array [1..12] of string =
     (
+      'debug::',
       'define:',
       'errorlog::',
       'help',
@@ -163,11 +164,12 @@ begin
       3: asm65.LogLevel := ltDebug;
     end;
     basename := StringReplace(asm65.FilenameSrc,ExtractFileExt(asm65.FilenameSrc),'',[rfReplaceAll]);
+    ProcessFilename(basename,asm65.FilenameDbg,'b','debug',   '.d65');
     ProcessFilename(basename,asm65.FilenameHex,'x','hex',     '.hex');
     ProcessFilename(basename,asm65.FilenameLst,'l','listing', '.lst');
     ProcessFilename(basename,asm65.FilenameLog,'e','errorlog','.log');
     ProcessFilename(basename,asm65.FilenameMap,'m','map',     '.map');
-    ProcessFilename(basename,asm65.FilenameObj,'o','object',  '.obj');
+    ProcessFilename(basename,asm65.FilenameObj,'o','object',  '.o65');
     CmdOptionToList(Self,'d','define', asm65.CmdDefines);
     CmdOptionToList(Self,'I','include',asm65.CmdIncludes,true);
     AugmentIncludes(GetCurrentDir,asm65.CmdIncludes);
@@ -226,6 +228,7 @@ begin
   writeln('Usage: asm65 filename <options>');
   WriteLn('');
   WriteLn('Options:');
+  WriteLn('    -b <bn> --debug=<bn>    Set the debug name to <bn>');
   WriteLn('    -d <id> --define=<id>   Define one or more symbols');
   WriteLn('    -e <en> --errorlog=<en> Set error log to <en>');
   WriteLn('    -h      --help          Display this message');
@@ -238,9 +241,9 @@ begin
   WriteLn('    -V      --version       Display version and other status info');
   WriteLn('    -x <hn> --hex=<hn>      Set the hex filename to <hn>');
   WriteLn('');
-  WriteLn('<en>/<ln>/<mn>/<on>/<hn> default to the filename with ext changed to');
-  WriteLn('.log/.hex/.lst/.obj/.hex respectively. Not specifying <en>, <ln>, <mn>');
-  WriteLn('or <hn> will stop that output.');
+  WriteLn('<bn>/<en>/<hn>/<ln>/<mn>/<on> default to the filename with ext changed to');
+  WriteLn('.d65/.log/.hex/.lst/.map/.o65 respectively. Not specifying <bn>, <en>,');
+  WriteLn('<hn>, <ln>, <mn> or <on> will stop that output.');
   WriteLn('');
   WriteLn('verbose <n> options:');
   WriteLn('    0 Normal output levels (the default)');
@@ -250,7 +253,7 @@ begin
   WriteLn('');
   WriteLn('The include file directory and define list <id> can contain names or');
   WriteLn('symbols delimited by ; for example:');
-  WriteLn('    --define=DEBUG;ALLOW_SPACES');
+  WriteLn('    --define=DEBUG;TAB_SIZE=4;CODE_NAME="Project ASM"');
   WriteLn('    --include=source/tables;source/help;/users/me/includes');
   WriteLn('');
 end;

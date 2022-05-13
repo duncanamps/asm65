@@ -14,7 +14,7 @@ unit usymbol;
 interface
 
 uses
-  Classes, SysUtils, fgl, uutility;
+  Classes, SysUtils, fgl, uutility, uifstack;
 
 const
   DEFAULT_HASH_SIZE = 1000;        // Initial size for hash table
@@ -31,7 +31,7 @@ type
     SymType:     TSymType;    // Symbol type
     SymPass:     integer;     // Pass defined in (1 or 2)
     SymHasValue: boolean;     // True if a number value is associate with symbol
-    SymUsed:     boolean;     // True if the symbol has been reference
+    SymUsed:     boolean;     // True if the symbol has been referenced
     SymValue:    uint16;      // Value
     SymValueS:   string;      // Value of string
     class operator = (se1, se2: TSymbolEntry): boolean;
@@ -50,7 +50,8 @@ type
     public
       constructor Create;
       destructor Destroy; override;
-      function  Define(_pass: integer; const _name: string): string;
+      function  Define(_pass: integer; const _name: string; _value: integer = -1): string;
+      function  Define(_pass: integer; const _name: string; _value: string): string;
       function  Define(_pass: integer; _isstring: boolean; const _name: string; const _variable: string; _overwrite: boolean = False): string;
       procedure Dump(_sl: TStringList);
       function  IndexOf(_key: string): integer;
@@ -61,7 +62,7 @@ type
       procedure SortByAddr;
       procedure SortByName;
       function  Undefine(const _name: string): string;
-      function  Variable(_pass: integer; _name: string; _default: string): string;
+      function  Variable(_pass: integer; _name: string; _default: string; _if: TIfStack): string;
     published
       property IfAllowed: boolean read FIfAllowed write FIfAllowed;
   end;
@@ -174,7 +175,7 @@ begin
     FHashTable[i] := -1;
 end;
 
-function TSymbolTable.Define(_pass: integer; const _name: string): string;
+function TSymbolTable.Define(_pass: integer; const _name: string; _value: integer): string;
 var entry: TSymbolEntry;
     index: integer;
 begin
@@ -187,9 +188,17 @@ begin
             begin
               entry.SymName     := UpperCase(_name);
               entry.SymPass     := _pass;
-              entry.SymHasValue := False;
               entry.SymUsed     := False;
-              entry.SymValue    := 0;
+              if _value >= 0 then
+                begin
+                  entry.SymHasValue := True;
+                  entry.SymValue    := _value;
+                end
+              else
+                begin
+                  entry.SymHasValue := False;
+                  entry.SymValue    := 0;
+                end;
               AddHash(_name,Add(entry));
               CheckHashSize;
             end;
@@ -206,9 +215,77 @@ begin
             begin  // Was .UNDEFINEd in pass 1, need to re-define in pass 2
               entry.SymName     := UpperCase(_name);
               entry.SymPass     := _pass;
-              entry.SymHasValue := False;
               entry.SymUsed     := False;
-              entry.SymValue    := 0;
+              if _value >= 0 then
+                begin
+                  entry.SymHasValue := True;
+                  entry.SymValue    := _value;
+                end
+              else
+                begin
+                  entry.SymHasValue := False;
+                  entry.SymValue    := 0;
+                end;
+              AddHash(_name,Add(entry));
+              CheckHashSize;
+            end;
+        end;
+  end; // Case
+end;
+
+function TSymbolTable.Define(_pass: integer; const _name: string; _value: string): string;
+var entry: TSymbolEntry;
+    index: integer;
+begin
+  Result := '';
+  case _pass of
+    1:  begin
+          if Exists(_name) then
+            Result := 'Symbol ' + _name + ' already exists'
+          else
+            begin
+              entry.SymName     := UpperCase(_name);
+              entry.SymPass     := _pass;
+              entry.SymUsed     := False;
+              if _value <> '' then
+                begin
+                  entry.SymHasValue := True;
+                  entry.SymValueS   := _value;
+                  entry.SymType     := stString;
+                end
+              else
+                begin
+                  entry.SymHasValue := False;
+                  entry.SymValue    := 0;
+                end;
+              AddHash(_name,Add(entry));
+              CheckHashSize;
+            end;
+        end;
+    2:  begin
+          if Exists(_name) then
+            begin
+              index := IndexOf(_name);
+              entry := Items[index];
+              entry.SymPass := _pass;
+              Items[index] := entry;
+            end
+          else
+            begin  // Was .UNDEFINEd in pass 1, need to re-define in pass 2
+              entry.SymName     := UpperCase(_name);
+              entry.SymPass     := _pass;
+              entry.SymUsed     := False;
+              if _value <> '' then
+                begin
+                  entry.SymHasValue := True;
+                  entry.SymValueS   := _value;
+                  entry.SymType     := stString;
+                end
+              else
+                begin
+                  entry.SymHasValue := False;
+                  entry.SymValue    := 0;
+                end;
               AddHash(_name,Add(entry));
               CheckHashSize;
             end;
@@ -238,6 +315,7 @@ begin
                       entry.SymType := stString;
                       entry.SymValue  := 0;
                       entry.SymValueS := _variable;
+                      entry.SymHasValue := True;
                     end
                   else
                     begin
@@ -259,6 +337,7 @@ begin
                   entry.SymType := stString;
                   entry.SymValue  := 0;
                   entry.SymValueS := _variable;
+                  entry.SymHasValue := True;
                 end
               else
                 begin
@@ -282,6 +361,7 @@ begin
                   entry.SymType := stString;
                   entry.SymValue  := 0;
                   entry.SymValueS := _variable;
+                  entry.SymHasValue := True;
                 end
               else
                 begin
@@ -302,6 +382,7 @@ begin
                   entry.SymType := stString;
                   entry.SymValue  := 0;
                   entry.SymValueS := _variable;
+                  entry.SymHasValue := True;
                 end
               else
                 begin
@@ -319,18 +400,24 @@ end;
 procedure TSymbolTable.Dump(_sl: TStringList);
 var i: integer;
     marker: string;
+    sym: TSymbolEntry;
+    namestr: string;
 begin
   _sl.Add('HEX  DEC   ? NAME');
   _sl.Add('---- ----- - ----');
   for i := 0 to Count-1 do
     begin
+      sym := Items[i];
       marker := ' ';
-      if not Items[i].SymUsed then
+      if not sym.SymUsed then
         marker := '*';
-      if Items[i].SymHasValue then
-        _sl.Add(Format('%4.4X %5d %s %s',[Items[i].SymValue,Items[i].SymValue,marker,Items[i].SymName]))
+      namestr := sym.SymName;
+      if sym.SymType = stString then
+          namestr := namestr + ' "' + sym.SymValueS + '"';
+      if (sym.SymHasValue) and (sym.SymType <> stString) then
+        _sl.Add(Format('%4.4X %5d %s %s',[sym.SymValue,sym.SymValue,marker,namestr]))
       else
-        _sl.Add(Format('           %s %s',[marker,Items[i].SymName]));
+        _sl.Add(Format('           %s %s',[marker,namestr]));
     end;
 end;
 
@@ -420,7 +507,7 @@ begin
     end;
 end;
 
-function TSymbolTable.Variable(_pass: integer; _name: string; _default: string): string;
+function TSymbolTable.Variable(_pass: integer; _name: string; _default: string; _if: TIfStack): string;
 var i: integer;
 begin
   Result := '';
@@ -444,7 +531,12 @@ begin
         end;
     2:  begin
           if i < 0 then
-            raise Exception.Create('Symbol ' + _name + ' not found')
+            begin
+              if _if.Allowed then
+                raise Exception.Create('Symbol ' + _name + ' not found')
+              else
+                result := _default;
+             end
           else
             case Items[i].SymType of
               stString:    Result := Items[i].SymValueS;

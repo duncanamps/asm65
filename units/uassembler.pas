@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, deployment_parser_module_12, deployment_parser_types_12,
-  ufilestack, usymbol, uasmglobals, uoutput, uifstack, umacro;
+  ufilestack, usymbol, uasmglobals, uoutput, uifstack, umacro, udebuglist;
 
 
 type
@@ -22,6 +22,7 @@ type
       FBytesTotal:     integer;
       FCmdDefines:     TStringList;
       FCmdIncludes:    TStringList;
+      FDebugList:      TDebugList;
       FDefiningMacro:  boolean;
       FForceList:      boolean;
       FFilenameSrc:    string;
@@ -152,6 +153,7 @@ type
       procedure InitLine;
       procedure InitPass;
       procedure InitStart;
+      procedure OutputDebugLine(const _asmline: string);
       procedure OutputListingLine(const _asmline: string);
       procedure ProcessFile(const _fn: string; _listing: boolean = True);
       procedure ProcessFileInner;
@@ -164,6 +166,7 @@ type
       procedure SetOnMonitor(_monitor: TLCGMonitorProc);
       procedure WriteMapFile;
     public
+      FilenameDbg:    string;
       FilenameHex:    string;
       FilenameLst:    string;
       FilenameLog:    string;
@@ -278,6 +281,7 @@ begin
   FFileStack := TFileStack.Create(Self);
   FIfStack   := TIfStack.Create(Self);
   FOutput := TOutput.Create;
+  FDebugList := TDebugList.Create;
   FListing := TStringList.Create;
   FMacroList := TMacroList.Create;
   FCmdDefines := TStringList.Create;
@@ -295,6 +299,7 @@ begin
   FCmdDefines.Free;
   FMacroList.Free;
   FListing.Free;
+  FDebugList.Free;
   FOutput.Free;
   FIfStack.Free;
   FFileStack.Free;
@@ -1192,7 +1197,7 @@ end;
 
 function TAssembler.ActStringSymbol(_parser: TLCGParser): TLCGParserStackEntry;
 begin
-  Result.Buf := FSymbols.Variable(FPass,_parser.ParserStack[_parser.ParserSP-1].Buf,'');
+  Result.Buf := FSymbols.Variable(FPass,_parser.ParserStack[_parser.ParserSP-1].Buf,'',FIfStack);
 end;
 
 function TAssembler.ActStrLeft(_parser: TLCGParser): TLCGParserStackEntry;
@@ -1256,12 +1261,12 @@ begin
   if not ProcessingAllowed then
     Result.Buf := IntToStr(FOrg)
   else
-    Result.Buf := FSymbols.Variable(FPass,FLocalPrefix+_parser.ParserStack[_parser.ParserSP-1].Buf,IntToStr(FOrg));
+    Result.Buf := FSymbols.Variable(FPass,FLocalPrefix+_parser.ParserStack[_parser.ParserSP-1].Buf,IntToStr(FOrg),FIfStack);
 end;
 
 function TAssembler.ActValueSymbol(_parser: TLCGParser): TLCGParserStackEntry;
 begin
-  Result.Buf := FSymbols.Variable(FPass,_parser.ParserStack[_parser.ParserSP-1].Buf,IntToStr(FOrg));
+  Result.Buf := FSymbols.Variable(FPass,_parser.ParserStack[_parser.ParserSP-1].Buf,IntToStr(FOrg),FIfStack);
 end;
 
 procedure TAssembler.Assemble;
@@ -1275,10 +1280,13 @@ begin
     AssemblePass(1);
     AssemblePass(2);
     WriteMapFile;
+    if FilenameDbg <> '' then
+      FDebugList.SaveToFile(FilenameDbg);
     if FilenameLst <> '' then
       FListing.SaveToFile(FilenameLst);
     if FBytesTotal > 0 then
       begin
+//      FOutput.SaveDebug(FilenameDbg);
         FOutput.SaveHex(FilenameHex);
         FOutput.SaveObject(FilenameObj);
       end;
@@ -1337,8 +1345,14 @@ end;
 
 procedure TAssembler.InitPass;
 var i: integer;
-    symbolname: string;
-    message:    string;
+    symbolstring: string;
+    symbolname:   string;
+    symbolval:    string;
+    symbolvaln:   integer;
+    symindex:     integer;
+    symentry:     TSymbolEntry;
+    eqpos:        integer;
+    message:      string;
 begin
   FBytesTotal := 0;
   FDefiningMacro := False;
@@ -1354,8 +1368,21 @@ begin
   // Now add the predefined symbols if present on the command line
   for i := 0 to CmdDefines.Count-1 do
     begin
-      symbolname := CmdDefines[i];
-      message := FSymbols.Define(FPass,symbolname);
+      symbolstring := CmdDefines[i];
+      eqpos := Pos('=',symbolstring);
+      if eqpos = 0 then
+        message := FSymbols.Define(FPass,symbolstring)
+      else
+        begin // Symbol AND defined value
+          symbolname := Copy(symbolstring,1,eqpos-1);
+          symbolval  := Copy(symbolstring,eqpos+1,9999);
+          try
+            symbolvaln := StrToInt(symbolval);
+            message := FSymbols.Define(FPass,symbolname,symbolvaln);
+          except
+            message := FSymbols.Define(FPass,symbolname,symbolval);
+          end;
+        end;
       if message <> '' then
         Monitor(ltError,message);
     end;
@@ -1365,11 +1392,12 @@ procedure TAssembler.InitStart;
 begin
   Monitor(ltWarAndPeace,'Defines = %s',[CmdDefines.DelimitedText]);
   Monitor(ltWarAndPeace,'Includes = %s',[CmdIncludes.DelimitedText]);
+  Monitor(ltWarAndPeace,'D65 filename = %s',[FilenameDbg]);
   Monitor(ltWarAndPeace,'HEX filename = %s',[FilenameHex]);
   Monitor(ltWarAndPeace,'LST filename = %s',[FilenameLst]);
   Monitor(ltWarAndPeace,'LOG filename = %s',[FilenameLog]);
   Monitor(ltWarAndPeace,'MAP filename = %s',[FilenameMap]);
-  Monitor(ltWarAndPeace,'OBJ filename = %s',[FilenameObj]);
+  Monitor(ltWarAndPeace,'O65 filename = %s',[FilenameObj]);
   Monitor(ltWarAndPeace,'tab value = %d',[TabSize]);
 end;
 
@@ -1428,6 +1456,18 @@ end;
 procedure TAssembler.Monitor(LogType: TLCGLogType; const Message: string; const Args: array of const);
 begin
   Monitor(LogType,Format(Message,Args));
+end;
+
+procedure TAssembler.OutputDebugLine(const _asmline: string);
+var addr:     uint16;
+begin
+  if (FPass = 1) then
+    Exit;
+  if FBytesFromLine > 0 then
+    addr := FOrg
+  else
+    addr := $FFFF;
+  FDebugList.Add(TDebugEntry.Create(addr,FBytesFromLine,FOutputArr,_asmline));
 end;
 
 procedure TAssembler.OutputListingLine(const _asmline: string);
@@ -1524,6 +1564,8 @@ begin
       if asmline <> '' then
         begin
           ProcessLine(asmline);
+          // Add to debug
+          OutputDebugLine(asmline);
           // Add to listing
           OutputListingLine(asmline);
           // Bump org
@@ -1731,11 +1773,7 @@ end;
 procedure TAssembler.SetFilenameSrc(const _fn: string);
 begin
   FFilenameSrc := _fn;
-//  if FilenameHex  = '' then FilenameHex  := ChangeFileExt(_fn,'.hex');
-//  if FilenameLst  = '' then FilenameLst  := ChangeFileExt(_fn,'.lst');
-//  if FilenameLog  = '' then FilenameLog  := ChangeFileExt(_fn,'.log');
-//  if FilenameMap  = '' then FilenameMap  := ChangeFileExt(_fn,'.map');
-  if FilenameObj  = '' then FilenameObj  := ChangeFileExt(_fn,'.obj');
+  if FilenameObj  = '' then FilenameObj  := ChangeFileExt(_fn,'.o65');
 end;
 
 procedure TAssembler.SetOnMonitor(_monitor: TLCGMonitorProc);
