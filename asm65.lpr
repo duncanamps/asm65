@@ -223,7 +223,7 @@ end;
 procedure TAsm6502.WriteHelp;
 begin
   { add your help code here }
-  writeln('Usage: asm6502 filename <options>');
+  writeln('Usage: asm65 filename <options>');
   WriteLn('');
   WriteLn('Options:');
   WriteLn('    -d <id> --define=<id>   Define one or more symbols');
