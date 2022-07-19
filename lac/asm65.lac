@@ -36,6 +36,7 @@
 {Backslash}     = [\x5c];
 {Escaped}       = [\x5c\x22tnr];
 {DQuote}		= [\x22];
+{SQuote}		= [\x27];
 {StringChar}	= {Printable} - {DQuote} - {Backslash} + {Tab};
 {CommentChar}	= {Printable} + {Tab};
 {NonCurlyChar}	= {Printable} + {Tab} - [}];
@@ -132,6 +133,7 @@ NotEqual         = "!="	symbol ;
 // Literals
 
 BinLiteral       = "0b"{DigitBin}+;
+CharLiteral      = {SQuote}{Printable}{SQuote};
 DecLiteral       = {DigitNonZero}{Digit}*;
 HexLiteral       = ( "0x"{DigitHex}+ | "$"{DigitHex}+ )  ;
 OctLiteral       = "0"{DigitOct}*;
@@ -336,6 +338,7 @@ InternalComment1	= "{" {NonCurlyChar}* "}" ignore;
 					| DecLiteral									# ActDecLiteral
 					| OctLiteral									# ActOctLiteral
 					| BinLiteral									# ActBinLiteral
+					| CharLiteral									# ActCharLiteral
 					| F_ASC <string_expr> ")"						# ActFuncAsc
 					| F_HIGH <expression> ")"						# ActFuncHigh
 					| F_IIF <expression> "," <expression> "," <expression> ")" # ActFuncIif

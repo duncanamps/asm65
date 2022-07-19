@@ -1,6 +1,26 @@
 {$WARN 5024 off : Parameter "$1" not used}
 unit uassembler;
 
+{
+    ASM65 - Cross Assembler for 6502 processor
+    Copyright (C)2020-2022 Duncan Munro
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+    Contact: Duncan Munro  duncan@duncanamps.com
+}
+
 {$mode objfpc}{$H+}
 
 interface
@@ -48,9 +68,9 @@ type
       FProcessParms:   string;
       FStreamLog:      TFileStream;
       FSymbols:        TSymbolTable;
-      FTabSize:        integer;
       FVerbose:        boolean;
       function  ActBinLiteral(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActCharLiteral(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActCompEQ(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActCompGE(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActCompGT(_parser: TLCGParser): TLCGParserStackEntry;
@@ -310,6 +330,11 @@ end;
 function TAssembler.ActBinLiteral(_parser: TLCGParser): TLCGParserStackEntry;
 begin
   Result.Buf := VariableFromBinLiteral(_parser.ParserStack[_parser.ParserSP-1].Buf);
+end;
+
+function TAssembler.ActCharLiteral(_parser: TLCGParser): TLCGParserStackEntry;
+begin
+  Result.Buf := IntToStr(Ord(_parser.ParserStack[_parser.ParserSP-1].Buf[2]));
 end;
 
 function TAssembler.ActCompEQ(_parser: TLCGParser): TLCGParserStackEntry;
@@ -1672,6 +1697,7 @@ var _procs: TStringArray;
 begin
   _procs := RuleProcs;
   RegisterProc('ActBinLiteral',     @ActBinLiteral, _procs);
+  RegisterProc('ActCharLiteral',    @ActCharLiteral, _procs);
   RegisterProc('ActCopy1',          @ActCopy1, _procs);
   RegisterProc('ActCompEQ',         @ActCompEQ, _procs);
   RegisterProc('ActCompGE',         @ActCompGE, _procs);
