@@ -1,25 +1,5 @@
 program asm65;
 
-{
-    ASM65 - Cross Assembler for 6502 processor
-    Copyright (C)2020-2022 Duncan Munro
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-    Contact: Duncan Munro  duncan@duncanamps.com
-}
-
 {$mode objfpc}{$H+}
 
 uses
@@ -91,7 +71,7 @@ begin
   end;
 
   // Help if needed...
-  if HasOption('h', 'help') then
+  if HasOption('h', 'help') or (ParamCount < 1) then
     begin
       WriteHelp;
       Terminate;
@@ -151,20 +131,7 @@ begin
     GetNonOptions(SHORT_OPTIONS,LONG_OPTIONS,nonoptions);
     if nonoptions.Count < 1 then
       begin
-        WriteLn('Use  asm65 --help  for command line options');
-        WriteLn('');
-        WriteLn('This program is free software: you can redistribute it and/or modify');
-        WriteLn('it under the terms of the GNU General Public License as published by');
-        WriteLn('the Free Software Foundation, either version 3 of the License, or');
-        WriteLn('(at your option) any later version.');
-        WriteLn;
-        WriteLn('This program is distributed in the hope that it will be useful,');
-        WriteLn('but WITHOUT ANY WARRANTY; without even the implied warranty of');
-        WriteLn('MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the');
-        WriteLn('GNU General Public License for more details.');
-        WriteLn;
-        WriteLn('You should have received a copy of the GNU General Public License');
-        WriteLn('along with this program.  If not, see <https://www.gnu.org/licenses/>.');
+        WriteLn('Filename not specified');
         Terminate;
         Exit;
       end;
@@ -304,7 +271,7 @@ begin
   try
     FileVerInfo.ReadFileInfo;
     WriteLn('');
-    WriteLn('6502 Macro Cross Assembler V' + FileVerInfo.VersionStrings.Values['ProductVersion']);
+    WriteLn('6502 Macro Assembler V' + FileVerInfo.VersionStrings.Values['ProductVersion']);
     WriteLn('Copyright (C)2020-' + FormatDateTime('YYYY',Now) + ' Duncan Munro');
     WriteLn('');
   finally

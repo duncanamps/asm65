@@ -21,8 +21,8 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
-      <BuildNr Value="8"/>
-      <StringTable LegalCopyright="Copyright (C)2020-2022 Duncan Munro" ProductName="6502 Macro Assembler" ProductVersion="0.1"/>
+      <BuildNr Value="7"/>
+      <StringTable LegalCopyright="Copyright (C)2020-2021 Duncan Munro" ProductName="6502 Macro Assembler" ProductVersion="0.1"/>
     </VersionInfo>
     <BuildModes Count="4">
       <Item1 Name="Debug" Default="True"/>
