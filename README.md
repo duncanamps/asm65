@@ -1,5 +1,5 @@
-# xa80
-asm6 - Macro Cross Assembler for the 6502 processor
+# asm65
+asm65 - Macro Cross Assembler for the 6502 processor
 WARNING - THIS IS UNRELEASED AND VERY MUCH WORK IN PROGRESS
 
 #### Synopsis
