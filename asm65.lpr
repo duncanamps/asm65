@@ -344,7 +344,6 @@ var
 
 begin
   Application:=TAsm6502.Create(nil);
-  Application.Title:='6502 Macro Assembler';
   Application.Run;
   Application.Free;
 end.

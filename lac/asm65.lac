@@ -245,7 +245,7 @@ InternalComment1	= "{" {NonCurlyChar}* "}" ignore;
 					| K_INCLUDE	 K_FORCE <string_expr>				# ActDirIncludeList
 					| K_INCLUDE	 <string_expr>						# ActDirInclude
 					| K_LIST										# ActDirList
-					| K_MACRO	 SymbolDef <expression_list>		# ActDirMacro
+					| K_MACRO	 SymbolDef <parameter_list>			# ActDirMacro
 					| K_MACRO	 SymbolDef							# ActDirMacroNoexpr
 					| K_MESSAGE	 <string_expr>						# ActDirMessage
 					| K_NOLIST 										# ActDirNolist
@@ -275,6 +275,19 @@ InternalComment1	= "{" {NonCurlyChar}* "}" ignore;
             |														# ActSetOpImpl 
 			;
 
+<parameter_list>	: <parameter_list> "," <parameter>				# ActParamList
+					| <parameter>									# ActCopy1
+					;
+					
+<parameter>			: SymbolDef										# ActCopy1
+					| BinLiteral									# ActCopy1
+					| CharLiteral									# ActCopy1
+					| DecLiteral									# ActCopy1
+					| HexLiteral									# ActCopy1
+					| OctLiteral									# ActCopy1
+					| MacroPlaceholder								# ActCopy1
+					;
+					
 <expression_list>	: <expression_list> "," <expression>			# ActExprList
 					| <expression>									# ActCopy1
 					;

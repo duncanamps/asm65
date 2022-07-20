@@ -140,6 +140,7 @@ type
       function  ActLogOr(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActMacroPlaceholder(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActOctLiteral(_parser: TLCGParser): TLCGParserStackEntry;
+      function  ActParamList(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActSetOpA(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActSetOpAbs(_parser: TLCGParser): TLCGParserStackEntry;
       function  ActSetOpAbsX(_parser: TLCGParser): TLCGParserStackEntry;
@@ -419,6 +420,7 @@ begin
   SetLength(FOutputArr,bcount);
   for i := 0 to bcount-1 do
     FOutputArr[i] := bval and $00FF;
+  FOutput.Write(FOutputArr,FOrg,bcount);
 end;
 
 function TAssembler65.ActDirDB(_parser: TLCGParser): TLCGParserStackEntry;
@@ -1107,6 +1109,11 @@ begin
   Result.Buf := VariableFromOctLiteral(_parser.ParserStack[_parser.ParserSP-1].Buf);
 end;
 
+function TAssembler65.ActParamList(_parser: TLCGParser): TLCGParserStackEntry;
+begin
+  Result.Buf := _parser.ParserStack[_parser.ParserSP-3].Buf + ',' + _parser.ParserStack[_parser.ParserSP-1].Buf;
+end;
+
 function TAssembler65.ActSetOpA(_parser: TLCGParser): TLCGParserStackEntry;
 begin
   FAddr := 0;
@@ -1767,6 +1774,7 @@ begin
   RegisterProc('ActLogOr',          @ActLogOr, _procs);
   RegisterProc('ActMacroPlaceholder', @ActMacroPlaceholder, _procs);
   RegisterProc('ActOctLiteral',     @ActOctLiteral, _procs);
+  RegisterProc('ActParamList',      @ActParamList, _procs);
   RegisterProc('ActSetOpA',         @ActSetOpA, _procs);
   RegisterProc('ActSetOpAbs',       @ActSetOpAbs, _procs);
   RegisterProc('ActSetOpAbsX',      @ActSetOpAbsX, _procs);
