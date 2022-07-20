@@ -4,14 +4,12 @@
     <PathDelim Value="\"/>
     <Version Value="12"/>
     <BuildModes Active="Release"/>
-    <Units Count="98">
+    <Units Count="99">
       <Unit0>
         <Filename Value="asm65.lpr"/>
         <IsPartOfProject Value="True"/>
-        <IsVisibleTab Value="True"/>
-        <TopLine Value="145"/>
-        <CursorPos X="37" Y="173"/>
-        <UsageCount Value="180"/>
+        <CursorPos X="13" Y="159"/>
+        <UsageCount Value="181"/>
         <Loaded Value="True"/>
       </Unit0>
       <Unit1>
@@ -19,64 +17,69 @@
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos Y="22"/>
-        <UsageCount Value="180"/>
+        <UsageCount Value="181"/>
       </Unit1>
       <Unit2>
         <Filename Value="units\usymbol.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos Y="22"/>
-        <UsageCount Value="98"/>
+        <UsageCount Value="99"/>
       </Unit2>
       <Unit3>
         <Filename Value="units\uutility.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="48"/>
-        <UsageCount Value="98"/>
+        <UsageCount Value="99"/>
       </Unit3>
       <Unit4>
-        <Filename Value="units\uassembler.pas"/>
+        <Filename Value="units\uassembler65.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="71"/>
-        <CursorPos X="19" Y="24"/>
-        <UsageCount Value="97"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="26"/>
+        <CursorPos X="6" Y="35"/>
+        <UsageCount Value="98"/>
+        <Loaded Value="True"/>
       </Unit4>
       <Unit5>
         <Filename Value="units\ufilestack.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="-1"/>
+        <EditorIndex Value="3"/>
         <CursorPos Y="22"/>
-        <UsageCount Value="90"/>
+        <UsageCount Value="91"/>
+        <Loaded Value="True"/>
       </Unit5>
       <Unit6>
         <Filename Value="units\uexpression.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="38" Y="14"/>
-        <UsageCount Value="83"/>
+        <UsageCount Value="84"/>
       </Unit6>
       <Unit7>
         <Filename Value="units\uoutput.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="-1"/>
-        <CursorPos Y="22"/>
-        <UsageCount Value="74"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="4"/>
+        <TopLine Value="66"/>
+        <CursorPos X="68" Y="92"/>
+        <UsageCount Value="75"/>
+        <Loaded Value="True"/>
       </Unit7>
       <Unit8>
         <Filename Value="units\uifstack.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos Y="22"/>
-        <UsageCount Value="69"/>
+        <UsageCount Value="70"/>
       </Unit8>
       <Unit9>
         <Filename Value="units\umacro.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos Y="22"/>
-        <UsageCount Value="61"/>
+        <UsageCount Value="62"/>
       </Unit9>
       <Unit10>
         <Filename Value="..\..\..\lacogen1\lac\core\deployment_parser_module_12.pas"/>
@@ -84,20 +87,20 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="858"/>
         <CursorPos Y="862"/>
-        <UsageCount Value="29"/>
+        <UsageCount Value="30"/>
       </Unit10>
       <Unit11>
         <Filename Value="..\..\..\lacogen1\lac\core\deployment_parser_types_12.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
-        <UsageCount Value="29"/>
+        <UsageCount Value="30"/>
       </Unit11>
       <Unit12>
         <Filename Value="units\udebuglist.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos Y="22"/>
-        <UsageCount Value="22"/>
+        <UsageCount Value="23"/>
       </Unit12>
       <Unit13>
         <Filename Value="..\..\..\lacogen1\lac\core\deployment_parser_module.pas"/>
@@ -681,9 +684,11 @@
       </Unit92>
       <Unit93>
         <Filename Value="..\..\z80\xa80\units\uassembler.pas"/>
-        <EditorIndex Value="-1"/>
-        <CursorPos Y="23"/>
+        <EditorIndex Value="2"/>
+        <TopLine Value="1486"/>
+        <CursorPos X="24" Y="1512"/>
         <UsageCount Value="10"/>
+        <Loaded Value="True"/>
       </Unit93>
       <Unit94>
         <Filename Value="code_examples\include1.inc"/>
@@ -705,12 +710,19 @@
         <EditorIndex Value="-1"/>
         <UsageCount Value="10"/>
       </Unit97>
+      <Unit98>
+        <Filename Value="..\..\z80\xa80\units\uoutput.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="93"/>
+        <CursorPos Y="94"/>
+        <UsageCount Value="10"/>
+      </Unit98>
     </Units>
     <OtherDefines Count="2">
       <Define0 Value="PROFILE"/>
       <Define1 Value="LCG8"/>
     </OtherDefines>
-    <JumpHistory Count="4" HistoryIndex="3">
+    <JumpHistory Count="17" HistoryIndex="16">
       <Position1>
         <Filename Value="asm65.lpr"/>
         <Caret Line="7" Column="7" TopLine="5"/>
@@ -727,6 +739,58 @@
         <Filename Value="asm65.lpr"/>
         <Caret Line="164" Column="84" TopLine="149"/>
       </Position4>
+      <Position5>
+        <Filename Value="asm65.lpr"/>
+        <Caret Line="159" Column="13"/>
+      </Position5>
+      <Position6>
+        <Filename Value="..\..\z80\xa80\units\uassembler.pas"/>
+        <Caret Line="23" TopLine="56"/>
+      </Position6>
+      <Position7>
+        <Filename Value="..\..\z80\xa80\units\uassembler.pas"/>
+        <Caret Line="167" Column="23" TopLine="143"/>
+      </Position7>
+      <Position8>
+        <Filename Value="..\..\z80\xa80\units\uassembler.pas"/>
+        <Caret Line="193" Column="26" TopLine="169"/>
+      </Position8>
+      <Position9>
+        <Filename Value="..\..\z80\xa80\units\uassembler.pas"/>
+        <Caret Line="194" Column="26" TopLine="170"/>
+      </Position9>
+      <Position10>
+        <Filename Value="..\..\z80\xa80\units\uassembler.pas"/>
+        <Caret Line="232" Column="18" TopLine="208"/>
+      </Position10>
+      <Position11>
+        <Filename Value="..\..\z80\xa80\units\uassembler.pas"/>
+        <Caret Line="1118" Column="27" TopLine="1093"/>
+      </Position11>
+      <Position12>
+        <Filename Value="..\..\z80\xa80\units\uassembler.pas"/>
+        <Caret Line="1120" Column="32" TopLine="1095"/>
+      </Position12>
+      <Position13>
+        <Filename Value="..\..\z80\xa80\units\uassembler.pas"/>
+        <Caret Line="1380" Column="30" TopLine="1355"/>
+      </Position13>
+      <Position14>
+        <Filename Value="..\..\z80\xa80\units\uassembler.pas"/>
+        <Caret Line="1385" Column="30" TopLine="1360"/>
+      </Position14>
+      <Position15>
+        <Filename Value="..\..\z80\xa80\units\uassembler.pas"/>
+        <Caret Line="1391" Column="47" TopLine="1366"/>
+      </Position15>
+      <Position16>
+        <Filename Value="..\..\z80\xa80\units\uassembler.pas"/>
+        <Caret Line="1512" Column="24" TopLine="1486"/>
+      </Position16>
+      <Position17>
+        <Filename Value="units\uoutput.pas"/>
+        <Caret Line="41" Column="21" TopLine="30"/>
+      </Position17>
     </JumpHistory>
     <RunParams>
       <FormatVersion Value="2"/>

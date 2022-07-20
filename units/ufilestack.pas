@@ -67,7 +67,7 @@ type
 implementation
 
 uses
-  uutility, uassembler, uasmglobals;
+  uutility, uassembler65, uasmglobals;
 
 { TFileStackEntry }
 
@@ -170,7 +170,7 @@ begin
     if Length(rec.List[i]) > MAX_LINE_LENGTH then
       FParser.Monitor(ltError,'Input line exceeds maximum line length of %s',[MAX_LINE_LENGTH])
     else
-      rec.List[i] := ExpandTabs(rec.List[i],TAssembler(FParser).TabSize);
+      rec.List[i] := ExpandTabs(rec.List[i],TAssembler65(FParser).TabSize);
   rec.InputLine := 0;
   Add(rec);
 end;

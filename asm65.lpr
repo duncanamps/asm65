@@ -26,7 +26,7 @@ uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
   cthreads,
   {$ENDIF}{$ENDIF}
-  Classes, SysUtils, CustApp, fileinfo, usymbol, uutility, uassembler,
+  Classes, SysUtils, CustApp, fileinfo, usymbol, uutility, uassembler65,
   ufilestack, uexpression, uoutput, uifstack, umacro,
   deployment_parser_types_12, deployment_parser_module_12, udebuglist;
 
@@ -71,7 +71,7 @@ type
 procedure TAsm6502.DoRun;
 var
   ErrorMsg:   String;
-  asm65:      TAssembler;
+  asm65:      TAssembler65;
   taboption:  string;
   tabvalue:   integer;
   verboption: string;
@@ -184,7 +184,7 @@ begin
 
   // Create the assembler and run it
 
-  asm65 := TAssembler.Create;
+  asm65 := TAssembler65.Create;
   try
     // Set up the initial parameters
     asm65.FilenameSrc := filename; // Has to go first!

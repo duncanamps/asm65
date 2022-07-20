@@ -144,7 +144,6 @@ Assignment			= "=" symbol;
 Accum				= MIXED("A")			keyword;
 ComX				= MIXED(",X")			keyword;
 ComY				= MIXED(",Y")			keyword;
-Force				= MIXED("FORCE")		keyword;
 F_ASC				= MIXED("ASC(")			keyword;
 F_BUILD				= MIXED("BUILD()")		keyword;
 F_CHR				= MIXED("CHR(")			keyword;
@@ -192,6 +191,7 @@ K_ORG				= MIXED(".ORG")			keyword;
 K_SET				= MIXED(".SET")			keyword;
 K_UNDEFINE			= MIXED(".UNDEFINE")	keyword;
 K_WARNING			= MIXED(".WARNING")		keyword;
+K_FORCE				= MIXED("FORCE")		keyword;
 
 LocalAddress		= "@" {SymbolStart}{SymbolMid}*;
 MacroPlaceholder	= "@"{Digit};
@@ -242,7 +242,7 @@ InternalComment1	= "{" {NonCurlyChar}* "}" ignore;
 					| K_IF		 <expression>						# ActDirIf
 					| K_IFDEF	 SymbolDef							# ActDirIfdef
 					| K_IFNDEF	 SymbolDef							# ActDirIfndef
-					| K_INCLUDE	 Force <string_expr>				# ActDirIncludeList
+					| K_INCLUDE	 K_FORCE <string_expr>				# ActDirIncludeList
 					| K_INCLUDE	 <string_expr>						# ActDirInclude
 					| K_LIST										# ActDirList
 					| K_MACRO	 SymbolDef <expression_list>		# ActDirMacro
