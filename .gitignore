@@ -1,8 +1,6 @@
 *.bat
 *.dbg
-*.lacobj
 *.nev
-*.res
 *.tx2
 *.tx3
 *.txt
